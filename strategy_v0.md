@@ -1,185 +1,258 @@
-# Hermes — Strategy v0 Spec (data-informed + notes-informed)
+# Hermes — Strategy v0 Spec (barbell revision)
 
-> Revised after reading your 2023–2025 trading notes (`notes_trading_strats.html`). The notes are 3,000 lines of mostly-sound mathematical reasoning that produced an elegant but unvalidated signal-generation apparatus. Your *actual* P&L came from the volatility-premium harvesting strategies (wheel + CC) you treated as sidelines. v0 follows the data, not the elegance. Parked ideas appendix at the bottom preserves the rest for future versions.
+> **Revision rationale.** The prior spec described pure short-premium harvesting (CSPs + covered calls). This is structurally concave — the canonical "pennies in front of a steamroller" payoff that Taleb argues against, regardless of positive expected value. This revision restructures Hermes as a **barbell**: short-premium harvesting on one side, long-vol tail hedging on the other, with the latter funded by a fraction of the premium harvested by the former. The combined exposure is intended to have positive or near-zero skew, not the deeply negative skew of unhedged short vol.
+>
+> The expected return is lower than the unhedged version. That is the deliberate trade. The asymmetry being purchased is *survival of regime change*, which is the only thing that distinguishes a strategy that compounds for 20 years from a strategy that compounds for 8 years and then dies in a single month.
 
 ---
 
 ## 1. Edge hypothesis
 
-**One-sentence claim:** We are *harvesting* (not predicting) the structural overpricing of implied volatility relative to realized volatility on liquid US equities, by systematically selling cash-secured puts at delta ≈ 0.30 with 30–45 DTE, and selling covered calls against any shares assigned.
+**One-sentence claim:** We harvest the volatility risk premium on liquid US equities through cash-secured short puts at delta ≈ 0.30 with 30–45 DTE, and we deliberately reinvest 18–22% of harvested premium into long out-of-the-money index puts and VIX calls, producing a barbell payoff: bounded participation in benign regimes, convex protection in crisis regimes.
 
-**Why this framing matters:** This is a *harvesting* edge, not a *forecasting* edge. We are not predicting whether the underlying goes up or down. We are accepting a known small probability of large loss in exchange for a known high probability of small gain — and the premium we receive compensates for that asymmetry with a small structural overpay. This is the same edge an insurance company captures by underwriting policies it cannot predict will or won't claim.
+**Why this framing matters.** We are not "selling insurance" in isolation. We are *running an insurance book that also buys reinsurance*. The premium gap between what we collect (single-name short puts, where retail and institutional hedging inflate IV) and what we pay (index/VIX long vol, where institutional supply is deeper and the premium is smaller) is our edge. This gap is small in absolute terms but structurally robust; it does not require us to be right about market direction, and it does not depend on the steamroller never arriving.
 
 **Why the inefficiency exists:**
-- Institutional hedgers structurally bid up put implied vol to hedge portfolios
-- Retail option buyers sustain demand for OTM lottery tickets
-- The strategy is capital-intensive (cash-secured), which limits arbitrage capacity
+- Single-name IV on quality large-caps is structurally bid up by institutional hedgers and retail OTM lottery-ticket buyers
+- Index/VIX long vol is supplied by a larger pool of vol sellers (systematic strategies, market makers, retail) which compresses its premium relative to single-name short vol
+- The premium *differential* between paid and received vol is the harvestable spread; the absolute level of either is not the edge
 
 **Why hasn't it been arbitraged away?**
-- Capacity-limited: requires (strike × 100) capital per contract held
-- Tail risk discourages full exploitation by large players
-- Most retail participants chase forecasting strategies (your own notes are a case study) rather than structural harvesting
+- Operationally complex: requires running two coordinated books with opposite vol exposure
+- Psychologically difficult: the long-vol leg looks like wasted money for years at a time
+- Capital-intensive on the short leg (cash-secured)
+- Most retail vol traders run pure short vol; most institutional tail-risk funds run pure long vol; few do both
 
-**Prior evidence in your own trading:** In 2025, 16 closed covered-call combos produced ~$8,721 at a 94% win rate; 27 wheel-pattern closed combos produced ~$11,877. These are your simplest strategies. By contrast, your randomized/filtered/scored signal-selection apparatus (developed across 2.5 years of notes) did not produce a comparable validated edge, and your stop-hedge inventions (Nov-Dec 2025) showed worse risk-adjusted returns and intractable failure modes documented in your own trade notes.
+**Prior evidence:** Your 2025 single-leg trading produced ~$14k on the harvest side (94% win rate on covered calls, ~$440 avg combo P/L on wheel). The harvest edge is empirically validated in your own data. The hedge leg is new in v0 — its purpose is to reshape the distribution of returns, not to add expected return.
 
-## 2. Universe
+---
 
-- **Asset class:** US-listed optionable equities only for v0 (no futures options, no index options, no 0-DTE)
-- **Specific instruments (starting set, all validated in your 2025 data):** BAC, VZ, F, KO, GILD, INTC
-- **Liquidity filters (canonized from your Nov 3, 2023 notes):**
-  - Option open interest > 500 at chosen strike
-  - Bid-ask spread < 5% of mid
-  - Underlying market cap > $10B
-  - Market depth check: at least 3 distinct bid levels within 2% of mid
-- **Exclusions:**
-  - Earnings within DTE window
-  - Announced corporate actions (M&A, spinoff, special dividend) within DTE window
-  - IV rank > 90 (likely event-driven, not volatility premium)
-  - Minimum option premium < $0.29 (from your Nov 22, 2025 calculation: keeps transaction costs < 10% of total proceeds)
-- **Watch list expansion:** add new tickers only after 8+ weeks of paper observation in the same volatility regime
+## 2. Structure overview
 
-## 3. Entry rules
+Hermes runs as a *two-leg book* with explicit coordination rules:
 
-- **Trigger condition:** sell-to-open short put when delta is between -0.25 and -0.35 (target -0.30) at chosen expiration
-- **Timeframe:** evaluated on the daily close; orders entered the following morning during regular trading hours
-- **DTE selection:** 30–45 days to expiration (your 2025 data shows this window dominated)
-- **Confirmation:** IV rank between 30 and 70 (avoid both dead-low premium and event-driven extremes)
-- **Cooldown:** no new put on same underlying within 7 days of a closed position
-- **Soft filter (from your Oct 23, 2023 notes):** annualized ROI of the trade `r = (1 + P/L)^(365/n) − 1` must exceed current 3-month T-bill yield + 5%. This is the opportunity-cost filter from your own framework, slightly relaxed from your original "+11%" threshold to allow for the wheel's lower volatility profile.
+**Leg 1 — Premium harvest (short vol, concave):**
+- Cash-secured short puts at delta ≈ 0.30, 30–45 DTE, on validated single-name universe
+- If assigned, sell covered calls at delta ≈ 0.30 against assigned shares (the wheel)
+- Generates monthly cash inflow
 
-## 4. Exit rules
+**Leg 2 — Tail hedge (long vol, convex):**
+- Long SPY puts: 60–120 DTE, delta ≈ 0.08–0.10, far OTM
+- Long VIX calls: 60–90 DTE, strike 25–30, very small allocation
+- Generates expected loss in benign months; expected large gain in crisis months
+- Funded by ~18–22% of harvested premium from Leg 1
 
-**Strongly defaulted from your data — these are rules, not options.**
+**Coordination:** the two legs are *not* hedges of specific positions — they are exposures of opposite convexity in the same portfolio. The wheel is not delta-hedged. The hedge is not position-by-position. The combined book is structured for distributional shape, not position-level neutrality.
 
-- **Take-profit (PRIMARY):** GTC LMT order attached on entry at 50% of credit received. Your 2025 trades show this is your single most disciplined automation pattern; v0 inherits it without exception.
-- **Stop-loss on the option:** none. The position is cash-secured; assignment is part of the strategy, not a stop event. (Your Sept 2023 explorations of TRAIL LMT and bracket variants are *not* used for the option leg — see Parked Ideas appendix.)
-- **Time stop:** if DTE ≤ 7 and position not yet closed at 50%, close at market on the next open regardless of P/L. Avoids gamma risk in the final week.
-- **Assignment handling:** if assigned, immediately sell covered call at delta ≈ 0.30 with 30–45 DTE against the assigned shares (the second half of the wheel).
-- **Never use STOP LOSS — only STOP LMT** if any stops are ever used. (Your June 28, 2023 lesson, paid for in real money.)
+---
 
-## 5. Position sizing
+## 3. Universe
 
-- **Sizing rule:** cash-secured. Each position requires (strike × 100 × number of contracts) in available cash. No margin for v0.
-- **Default size for v0:** 1 contract per position
-- **Maximum position size per underlying:** 5% of total account equity
-- **Maximum total deployed capital:** 50% of account equity across all open positions for v0; raise to 75% only after 12+ weeks of clean operation
-- **Position-level loss bound expressed as % of account, not absolute $** (from your Sept 24, 2023 lesson)
+**Leg 1 (single-name short premium):**
+- US-listed optionable equities, Penny Interval Program members
+- Starting set: BAC, VZ, F, KO, GILD, INTC
+- Liquidity filters: option open interest > 500 at chosen strike; bid-ask spread < 5% of mid; underlying market cap > $10B
+- Exclusions: earnings within DTE window; corporate actions within DTE window; IV rank > 90; option premium < $0.29
 
-## 6. Risk limits
+**Leg 2 (index/vol long premium):**
+- SPY: front-month-plus for long puts (most liquid US equity option chain by orders of magnitude)
+- VIX: standard VIX options (cash-settled European)
+- No single-name long options for v0 (basis risk too noisy; index hedge is cleaner)
 
-- **Maximum concurrent positions:** 6 (one per name in the validated universe)
-- **Daily loss limit before halt:** -2% of account equity (closes new entries for the day; existing positions held per exit rules)
-- **Drawdown threshold for full pause:** -8% drawdown from peak account equity → halt all new entries, review against falsification framework before resuming
-- **Single-trade max loss bound:** position sizing physically prevents single-trade loss exceeding 5% of account. Your worst 2025 trade (-$4,742) was ~33% of your annual P/L on a single position; v0 cannot inherit that exposure profile.
-- **Liquidity emergency rule:** if bid-ask spread on any open position widens beyond 3× normal during market hours, halt new entries until the regime clarifies. (From your Sept 20, 2023 Fed-meeting experience.)
+---
 
-## 7. Execution model
+## 4. Entry rules
 
-- **Broker:** Interactive Brokers (TWS / IBKR API)
-- **Order type defaults:**
-  - Entry: LMT at midpoint, willing to walk up to 5% of bid-ask spread; cancel if unfilled after 30 minutes
-  - Profit-taker: GTC LMT attached at entry (NOT TRAIL LMT — see Parked Ideas)
-- **Slippage assumption for backtests:** 5% of bid-ask spread on entry, 0% on profit-taker LMT
-- **Commission model:** IBKR retail tiered — pull actual commissions from your IBKR statements rather than estimate
-- **Order timing discipline (from your July 5, 2023 lesson):** no orders submitted within 15 minutes of market close; auto-cancel any unfilled orders at 15:45 ET
-- **Order discipline (from your July 6, 2023 lesson):** any bracketed orders use One-Cancels-Other (OCO) tag
+**Leg 1 — Short put entry:**
+- Sell-to-open short put when delta is between -0.25 and -0.35 (target -0.30)
+- DTE 30–45 days
+- IV rank between 30 and 70
+- Annualized ROI > T-bill yield + 5%
+- Cooldown: no new put on same underlying within 7 days of a closed position
 
-## 8. Falsification criteria
+**Leg 2 — Long-vol entry (initial sizing):**
+- SPY puts: open a position whenever portfolio long-put notional protection drops below the sizing target (see Section 6). Buy 60–120 DTE puts at delta ≈ 0.08–0.10 (typically 8–12% OTM). One position per month if needed for replenishment.
+- VIX calls: maintain a continuously rolled position. Buy 60–90 DTE calls at strike 25–30. Roll when DTE drops below 30 days. One position per month, sized to ~3–5% of harvested premium for the prior month.
 
-Calibrated against your simplest strategies (94% win rate covered calls, ~$440 avg combo P/L wheel), not your most complex.
+**Anti-cyclicality discipline:**
+- If VIX < 15: *increase* hedge allocation by 20% (insurance is cheap; markets are complacent)
+- If VIX 15–25: standard hedge allocation (this is the base case)
+- If VIX > 25: maintain existing hedges; do NOT aggressively add (vol is already priced in; hedging at elevated VIX has poor entry economics)
+- If VIX > 35: suspend new short-premium entries entirely (Section 6 risk limit)
 
-- **Live performance threshold:** if 8-week paper-trade average combo P/L < $200 (vs. 2025 baseline of ~$440 wheel / $545 CC), shelve and review
-- **Win rate threshold:** if CSP win rate (not counting assignments as losses) < 70% over 20+ trades, shelve. *(Note: this is set above your 2025 combo-win rate of 48%, because the 48% counts assignments as losses; pure CSP win rate is much higher.)*
-- **Drawdown threshold:** if peak-to-trough equity drawdown > 12% during Phase 2 paper period, shelve regardless of P/L
-- **Regime detector:** if VIX > 35 sustained for 5+ trading days, suspend new entries — wheel underperforms in true high-vol regimes, the failure mode least visible in your 2024-2025 data
-- **Edge-source check (quarterly):** is realized P&L coming from delta exposure (i.e., we're directionally long via assignment) or from theta/IV-collapse (i.e., we're harvesting premium)? If > 70% of P&L is delta-driven over a quarter, the strategy is functionally long-only with extra commission drag — shelve and replace with simple buy-and-hold of the universe.
+---
 
-> **The trap to avoid:** when paper-trade performance is mediocre but "almost there," the temptation is to soften thresholds. Pre-commit now, in writing, that thresholds are evaluated mechanically. Your notes already document the related failure mode (complexifying a strategy to compensate for missing edge); the same psychology applies to softening falsification criteria.
+## 5. Exit rules
 
-## 9. Performance bar to go live (Phase 3 gate)
+**Leg 1 — Short premium exits:**
+- Take-profit: GTC LMT order at 50% of credit received, attached on entry
+- Time stop: if DTE ≤ 7 and not closed at 50%, close at market on next open
+- Assignment: sell covered calls at delta ≈ 0.30, 30–45 DTE
 
-Paper-trade results must meet ALL of the following over 8+ weeks before real capital is deployed:
+**Leg 2 — Long-vol exits:**
+- **Never close a profitable hedge to "lock in gains."** The whole point of convexity is to let it run when it works. If a hedge moves significantly into profit (>5× initial cost), consider rolling the strike up to maintain exposure, but do not close to take profit.
+- DTE-based roll: close and reopen when DTE < 30 days, regardless of P/L
+- Strike-based roll: if SPY has rallied significantly and your put is more than 20% OTM, roll up to bring it closer to delta target (cheap; restores convexity)
+- The hedge book is intended to expire worthless most months. Plan for that emotionally and budgetarily.
 
-- Sharpe ratio (annualized): > 1.0
-- Win rate on CSPs (not counting assignments): > 70%
-- Average closed-combo P/L: > $200
-- Maximum drawdown: < 8% of paper account
-- Trade count: > 25 closed combos (small N = no decision)
+**Never use STOP LOSS — only STOP LMT** (your June 28, 2023 lesson applies to both legs).
 
-## 10. Operational stack
+---
 
-- **Data source:** IBKR TWS for live data, Polygon historical for backtesting
-- **Broker for paper / live:** IBKR (paper account first, live in same broker for consistent fills)
-- **Runtime:** local cron on your Somerville machine for v0; migrate to EC2 only if uptime becomes a constraint
-- **Storage:** SQLite for trade log, daily snapshot of portfolio state
-- **Monitoring:** daily email to krish.kshir@gmail.com at market close with: positions open, today's P&L, orders triggered, errors. Weekly Saturday summary tied to the Hermes block.
-- **Kill switch:** simple toggle file checked at the top of every order-generation cycle; if `~/.hermes/PAUSE` exists, no new orders generated. Phone access via SSH or a tiny mobile-friendly status page. Design before paper-trading, not before live.
+## 6. Position sizing
 
-## 11. Known failure modes
+**Leg 1 — Short premium sizing:**
+- Cash-secured: each position requires (strike × 100 × contracts) in available cash
+- Default size: 1 contract per position
+- Maximum per underlying: 5% of total account equity
+- Maximum total deployed capital: 50% of account equity across all open short puts
+- Cash-secured structure caps single-trade loss at 5% of account; this is the hard rule
 
-These are the lessons already encoded in your 2023–2025 notes and trade annotations. Re-learning them costs real money.
+**Leg 2 — Long-vol sizing (the load-bearing math):**
 
-- **Assignment in a falling regime:** the wheel fails when you get assigned at strike and the underlying continues falling. Covered calls written against the underwater position generate trivial premium and lock you in to recovery. Bounded by universe filter (high-quality, dividend-paying names) but not eliminated.
-- **Crowded volatility-selling regime:** when too much capital is short premium simultaneously, premiums compress and tail events amplify by short-covering. Feb 2018 "Volmageddon" is canonical. Detected by VIX regime check.
-- **Market-maker gaming in thin contracts:** your Nov 3, 2023 lesson. Avoided entirely by liquidity floor in Section 2.
-- **Cancel-before-close discipline:** your trade notes flag missed GTC cancellations causing unwanted fills near 4 PM ET. Encoded in Section 7.
-- **Bid-ask gaming during open volatility:** your notes describe market-open volatility causing protective STOPs to trigger at terrible fills. v0 sidesteps entirely by not relying on STOPs; cash-secured + LMT-only fills.
-- **Early assignment risk on deep ITM short options:** your June 28, 2023 GOOG put lesson. Mitigated by closing any position that goes > 5% ITM before expiration.
-- **Strategy complexification under pressure:** the deepest failure mode in your notes. When a strategy isn't producing edge, the right response is to question the premise, not add layers. v0 commits to this discipline by *deferring* any modification to the spec until the next quarterly review point.
+*Target.* Hedge book is sized so that a -20% one-month SPY move produces a hedge gain ≈ 50% of the expected wheel pain in that scenario. This is *partial* protection — sized to convert a catastrophic month into a survivable one, not to fully neutralize tail exposure. Full neutralization would cost essentially all the premium harvested.
 
-## 12. Validation plan
+*Working assumptions for sizing:*
+- Wheel deployed at 50% of equity ($50k on a $100k account) → -20% market move with assignment cycle produces ~$8–12k of wheel pain (8–12% drawdown), accounting for assignment at strikes 3–5% below current spot, premium offset, and mark-to-market on open positions
+- SPY put at 0.10 delta, 90 DTE, on SPY ≈ $550: costs ~$700–900 per contract. In a -20% SPY move (to ~$440), that put goes from ~$495 strike, ~$0 intrinsic to ~$55 intrinsic + remaining time value, total ~$5,500–6,000. Net hedge gain per contract: ~$5,000.
+- To offset 50% of $10k wheel pain → need ~1 SPY put → ~$800 cost
+- 90-DTE puts spread that cost over 3 months → ~$270/month
+- VIX calls at strike 25–30, ~3% of premium → ~$30/month (small)
+- Combined hedge cost: ~$300/month on a $100k account
+- Premium harvested at ~$500–1,000/month → hedge cost is **18–22% of harvested premium**
 
-- **Backtest window:** Jan 1, 2018 — Dec 31, 2024 (spans Volmageddon, COVID crash, 2022 bear market, 2024 dollar-vol regime). **This backtest is now part of Phase 1, not optional.** Your notes don't show any historical validation pass on the strategies you deployed live — v0 corrects that.
-- **Out-of-sample holdout:** Q4 2024 reserved for final validation — not touched during parameter tuning
-- **Walk-forward design:** monthly re-evaluation of universe filters; fixed entry/exit rules
-- **Paper-trade duration before live:** 8 weeks minimum; extend to 12 weeks if any single calendar month had < 4 closed combos
-- **Backtest data check before Phase 1 starts:** confirm Polygon has option chain history for your universe back to 2018, or shrink window accordingly
+*Sizing rule (encoded as a discipline):* recompute hedge requirements monthly. Buy SPY put protection to maintain the "50% of wheel pain in -20% scenario" target. Buy VIX calls in fixed proportion (3–5% of prior month's premium) regardless of price level. Do not skip a hedge purchase because "this month feels safe."
+
+*Anti-shrinkage rule:* during sustained low-VIX periods, the hedge will appear "wasteful." Do not shrink. The whole point of barbell sizing is to maintain protection through complacency. The discipline is to size based on what you'd need in a true tail, not on what feels reasonable given recent history.
+
+---
+
+## 7. Risk limits
+
+- Maximum concurrent short positions (Leg 1): 6
+- Daily loss limit before halt on new entries: -2% of account equity
+- Drawdown threshold for full pause on new entries: -8% (this is *defense in depth* behind the hedge, not the primary tail protection)
+- Single-trade max loss bound: 5% of account (enforced by sizing)
+- Liquidity emergency: if bid-ask spread on any open position widens beyond 3× normal during market hours, halt new entries
+- VIX regime: if VIX > 35 sustained for 5+ trading days, suspend new Leg 1 entries; maintain Leg 2 positions
+- Hedge maintenance rule: if combined long-vol notional falls below sizing target for 30 consecutive days, the system is in violation regardless of other P/L. Restore hedge before next short-premium entry.
+
+---
+
+## 8. Execution model
+
+- Broker: Interactive Brokers (TWS / IBKR API)
+- Order types:
+  - Entry on both legs: LMT at midpoint, willing to walk 5% of spread; cancel if unfilled after 30 min
+  - Leg 1 profit-taker: GTC LMT at 50% of credit, attached at entry
+  - Leg 2: no profit-taker (convexity must be allowed to run)
+- Slippage assumptions for backtests: 5% of bid-ask spread on entry, 30% of quoted half-spread on closing trades (Muravyev-Pearson algorithmic effective spread)
+- Commissions: IBKR retail tiered; pull actual from statements
+- Order timing: no orders within 15 min of close; auto-cancel unfilled at 15:45 ET
+- Bracketed orders use One-Cancels-Other (OCO)
+
+---
+
+## 9. Falsification criteria
+
+The whole point of barbell is to change the *shape* of returns, not just the mean. Falsification must be measured on shape, not just performance.
+
+**Shape criteria (the new and most important section):**
+- **Realized skew (12-month rolling, monthly observations):** must be > -0.5. If skew < -0.5 for two consecutive quarters, the hedge leg is undersized — recalibrate before any new short-premium entries.
+- **Worst-month / average-month ratio (12-month rolling):** must be ≤ 4×. A ratio of 6× or more indicates the strategy has retained too much concave exposure.
+- **Worst-month absolute floor:** any single month worse than -10% of equity triggers full strategy review.
+
+**Performance criteria (calibrated to the *hedged* return profile, not the unhedged one):**
+- 8-week paper-trade combined P/L (Leg 1 minus Leg 2 cost): > $150/closed-combo cycle (vs ~$440 unhedged baseline; reflects 18–22% hedge cost)
+- CSP win rate (not counting assignments): > 70% over 20+ trades
+- Combined book Sharpe (annualized): > 0.8 over 12+ weeks
+- Max drawdown: < 8% of paper account
+
+**The trap to avoid.** The hedge will cost money every month it's not needed. The shape-criteria checks are designed to prevent the most dangerous failure mode: gradually shrinking the hedge during benign periods because it "isn't earning its keep." If realized skew is acceptable, the hedge IS earning its keep — that's the point. Returns will look worse than unhedged short vol. The unhedged version is the one that blows up.
+
+> **Pre-commitment.** The shape criteria are evaluated mechanically. The phrase "the hedge is fine, the market just doesn't have any tail right now" is the verbal signature of impending strategy death. If skew turns negative for two consecutive quarters, the response is to *increase* the hedge, not rationalize keeping it as-is.
+
+---
+
+## 10. Performance bar to go live (Phase 3 gate)
+
+Paper-trade results must meet ALL over 8+ weeks before real capital:
+
+- Combined Sharpe (annualized): > 0.8
+- Realized skew (rolling): > -0.5
+- Worst-month / average-month ratio: < 4×
+- Max drawdown: < 8% of paper account
+- Trade count: > 25 closed Leg 1 combos
+- Hedge book maintained continuously (no 30+ day gaps in target coverage)
+
+---
+
+## 11. Operational stack
+
+- Data source: IBKR TWS for live data, ORATS Delayed ($99/mo) for backtesting (NBBO bid/ask, history to 2007)
+- Broker: IBKR (paper first, live in same broker)
+- Runtime: local cron on Somerville machine for v0
+- Storage: SQLite for trade log
+- Monitoring: daily email at market close with: Leg 1 positions, Leg 2 positions, hedge coverage ratio (actual vs target), today's P&L by leg, errors. Weekly Saturday summary.
+- Kill switch: `~/.hermes/PAUSE` file checked at top of every cycle. Phone access via SSH. Distinct kill switches per leg: pausing Leg 1 should NOT pause Leg 2 (continuing to roll hedges during crisis is critical).
+- Triggers for manual review: VIX > 25, single-day SPX move > 3%, any Leg 1 assignment, any hedge expiring more than 5× its cost (large convex win — review whether to roll up strike)
+
+---
+
+## 12. Known failure modes
+
+- **The concave-exposure trap (the new top item):** unhedged short vol blows up in crisis regimes (1987, 1998, 2008, Feb 2018, March 2020, Aug 2024). v0 explicitly addresses this with Leg 2. The most dangerous failure mode is not the trap itself — it's *shrinking the hedge during benign periods*. This is the single behavior most likely to convert v0 from a survivable strategy into LTCM-pattern.
+- **Crowded volatility-selling regime:** when too much capital is short premium, premiums compress and tails amplify. Leg 2 specifically protects against the Feb 2018-pattern. Detected by VIX regime check.
+- **Basis risk on hedges:** single-name idiosyncratic blowup (e.g., one of your names has accounting fraud) won't be fully hedged by SPY puts. Bounded by quality universe (S&P 100 names) but not eliminated. Acceptable residual risk for v0.
+- **Assignment in falling regime:** assigned at strike, underlying continues falling, covered calls produce trivial premium. Now partially offset by Leg 2 gains. Still painful, no longer existential.
+- **Hedge-decay cost:** in sustained low-vol regimes, Leg 2 bleeds continuously. This is *expected and budgeted*. The discipline is not to interpret it as evidence the hedge is too expensive.
+- **Strategy complexification under pressure:** the deepest failure mode from your notes. The barbell adds genuine complexity (two legs vs one). Resist the urge to add a third leg, modify hedge ratios mid-stream, or "improve" the strategy during a drawdown.
+- **Market-maker gaming, stale orders, etc.:** all your existing lessons from 2023-2025 notes apply.
+
+---
+
+## 13. Validation plan
+
+- Backtest window: Jan 1, 2018 — Dec 31, 2024 (must include Feb 2018, COVID March 2020, 2022 bear, Aug 2024)
+- Critical: backtest must include Leg 2 throughout. A backtest of Leg 1 alone is not valid — it tests the wrong strategy.
+- Out-of-sample holdout: Q4 2024
+- Walk-forward: monthly re-evaluation of universe filters; fixed entry/exit and sizing rules
+- Paper-trade duration: 8 weeks minimum; extend to 12 weeks if any month had < 4 closed Leg 1 combos
+- Data: confirm ORATS history covers both single-name option chains and SPY/VIX options back to 2018
 
 ---
 
 ## Sign-off checklist (end of Phase 0)
 
-- [ ] Every section above reviewed and either accepted or modified — defaults are starting points, not gospel
-- [ ] Falsification criteria personally committed to in writing (not just inherited from this template)
-- [ ] You can explain the edge hypothesis (harvesting, not forecasting) to a competent friend in under 2 minutes
-- [ ] You'd be willing to walk away from this strategy if the falsification criteria trigger — *honestly*
-- [ ] Kill switch design specified concretely (file path, check frequency, manual override path)
-- [ ] Polygon data availability confirmed for the backtest window
+- [ ] Every section reviewed and either accepted or modified
+- [ ] Hedge-sizing math reviewed and either accepted or refined with your own assumptions
+- [ ] Falsification criteria personally committed to in writing — including the shape criteria
+- [ ] You can explain why this is a barbell (not just "wheel with insurance") to a competent friend in under 2 minutes
+- [ ] You'd be willing to walk away from this strategy if shape criteria trigger — *honestly*
+- [ ] You have psychologically committed to the hedge bleeding money in benign months — *before* you start
+- [ ] Kill switch design specified concretely, with distinct switches per leg
+- [ ] Backtest data availability confirmed for both single-name and index options
 
-When all six are true, Phase 1 starts.
+When all eight are true, Phase 1 starts.
+
+---
+
+## Open questions to refine in Phase 0
+
+These are decisions I made with reasonable defaults but that deserve your own analysis:
+
+1. **SPY vs SPX for the hedge leg.** SPX has better tax treatment (60/40) and cash settlement; SPY has tighter spreads. For v0 I defaulted to SPY for liquidity; consider SPX if account size justifies and you're comfortable with 100× notional per contract.
+
+2. **VIX call sizing.** I defaulted to 3–5% of premium. This is rough. Aaron Brown and others argue VIX calls are the most efficient crisis-only hedge; could plausibly go to 8–10% of premium with smaller SPY put allocation. Worth modeling.
+
+3. **Hedge-sizing target.** I picked "hedge covers 50% of wheel pain in -20% scenario." More conservative would be 75% or 100% coverage (higher cost, lower expected return, higher Sharpe). Less conservative would be 25% (more like a "speed bump" hedge). The 50% level is a defensible middle; refine based on your own utility function.
+
+4. **VRP-percentile entry filter.** Goyal-Saretto and successors show that IV-RV ratio at entry predicts short-premium returns. v0 doesn't use this — entry is purely delta-based. Adding a "skip month if IV-RV ratio below 30th percentile" filter could meaningfully improve risk-adjusted returns. Park for v1 unless you want to backtest now.
+
+5. **Single-name long-vol allocation.** I excluded single-name long options as too noisy. There's a defensible argument for running a tiny long-OTM-puts book on the same wheel underlyings as a basis-risk-free hedge of the assignment exposure specifically. Could add as v1 enhancement.
 
 ---
 
 ## Appendix A — Strategies parked for vN
 
-Documented here so your 2.5 years of intellectual labor isn't lost, but kept out of v0 to prevent scope creep. Each parked strategy notes status and graduation criteria.
-
-### A.1 — Randomized signal selection (Poisson-Cauchy framework, June 2023 onward)
-
-**Status:** Parked indefinitely.
-**Rationale:** Theoretically interesting but mathematically suspect. Malkiel's argument is "you can't pick winners better than the market, buy the index" — *not* "random entries with asymmetric payoffs produce positive expectancy." In a fair-value options market, random selection has expected return zero minus commissions. The 2.5 years of elaboration did not produce a validated edge.
-**Graduation criteria:** demonstrate, with a formal backtest on 5+ years of historical data, that the random-selection framework with current filtering criteria produces Sharpe > 0.5 after realistic transaction costs. If achieved, revisit for vN.
-
-### A.2 — Synthetic-short-straddle-via-STOP-orders ("new options trading strategy", Nov 21, 2025 onward)
-
-**Status:** Parked. Has fundamental whipsaw exposure that complexification in Dec 22-25, 2025 notes does not resolve.
-**Rationale:** The structure is mathematically a short straddle around K, achieved via order management rather than two short options. In stable markets it collects premium; in choppy markets each cross of K destroys premium through transaction costs. The Dec 22, 2025 "half the premium per hedge" modification adds complexity without addressing the underlying issue.
-**Graduation criteria:** backtest demonstrates positive expectancy *after* transaction costs across at least three volatility regimes (low-vol stable, low-vol trending, high-vol). Until then, the wheel achieves the same exposure profile in a cleaner form.
-
-### A.3 — Futures + TRAIL LMT exit strategy (Sept-Nov 2023)
-
-**Status:** Parked. Promising framework but introduces leverage and 24/7 monitoring needs not appropriate for v0.
-**Rationale:** Index futures have legitimate advantages (cash settlement, 60/40 tax, low commissions, leverage). But MTM volatility and the documented failures of TRAIL LMT (premature triggers in normal price oscillations, the Nov 1, 2023 0DTE lesson) make this higher-touch than v0 should be.
-**Graduation criteria:** wheel is operating cleanly at scale; you have bandwidth for a higher-touch system; backtest shows TRAIL LMT parameters that don't trigger prematurely on at least 5 years of historical data.
-
-### A.4 — Index options (SPX/XEO/NDX) instead of stock options
-
-**Status:** Parked for v1, not eliminated.
-**Rationale:** Your Aug 15, 2023 notes correctly identify real advantages — cash settlement, 60/40 tax treatment (significant for taxable accounts), European exercise removes assignment risk. The reason v0 uses stock options is your validated universe (BAC, VZ, F, KO, GILD, INTC) has empirical track record; SPX-equivalent strategy does not yet.
-**Graduation criteria:** after v0 has 12 weeks of clean operation, run a parallel paper-trade test on XEO (S&P 100 European) wheel for 8 weeks. If P/L is competitive with stock-options wheel after tax adjustment, migrate.
-
-### A.5 — Scoring formula (`100 × Σ measure / |breakeven − spot| + 10 × NetPremium − ...`, July 24, 2023)
-
-**Status:** Useful framework, but not validated.
-**Rationale:** Constructed heuristic, not empirically tested predictor. Cannot be used as a primary filter until it's validated.
-**Graduation criteria:** if the wheel turns out to need a sub-ranking among multiple qualifying setups, backtest the scoring formula on historical wheel candidates and validate it correlates (r > 0.3) with realized P/L. Until then, "first qualifying trade per underlying per week" is sufficient v0 ranking.
+[Unchanged from prior version: randomized signal selection, synthetic-short-straddle-via-STOP-orders, futures + TRAIL LMT, index options migration, scoring formula. All deferred with explicit graduation criteria.]
