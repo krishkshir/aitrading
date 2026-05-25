@@ -13,11 +13,13 @@
 **Why this framing matters.** We are not "selling insurance" in isolation. We are *running an insurance book that also buys reinsurance*. The premium gap between what we collect (single-name short puts, where retail and institutional hedging inflate IV) and what we pay (index/VIX long vol, where institutional supply is deeper and the premium is smaller) is our edge. This gap is small in absolute terms but structurally robust; it does not require us to be right about market direction, and it does not depend on the steamroller never arriving.
 
 **Why the inefficiency exists:**
+
 - Single-name IV on quality large-caps is structurally bid up by institutional hedgers and retail OTM lottery-ticket buyers
 - Index/VIX long vol is supplied by a larger pool of vol sellers (systematic strategies, market makers, retail) which compresses its premium relative to single-name short vol
 - The premium *differential* between paid and received vol is the harvestable spread; the absolute level of either is not the edge
 
 **Why hasn't it been arbitraged away?**
+
 - Operationally complex: requires running two coordinated books with opposite vol exposure
 - Psychologically difficult: the long-vol leg looks like wasted money for years at a time
 - Capital-intensive on the short leg (cash-secured)
@@ -32,11 +34,13 @@
 Hermes runs as a *two-leg book* with explicit coordination rules:
 
 **Leg 1 — Premium harvest (short vol, concave):**
+
 - Cash-secured short puts at delta ≈ 0.30, 30–45 DTE, on validated single-name universe
 - If assigned, sell covered calls at delta ≈ 0.30 against assigned shares (the wheel)
 - Generates monthly cash inflow
 
 **Leg 2 — Tail hedge (long vol, convex):**
+
 - Long SPY puts: 60–120 DTE, delta ≈ 0.08–0.10, far OTM
 - Long VIX calls: 60–90 DTE, strike 25–30, very small allocation
 - Generates expected loss in benign months; expected large gain in crisis months
@@ -49,12 +53,14 @@ Hermes runs as a *two-leg book* with explicit coordination rules:
 ## 3. Universe
 
 **Leg 1 (single-name short premium):**
+
 - US-listed optionable equities, Penny Interval Program members
 - Starting set: BAC, VZ, F, KO, GILD, INTC
 - Liquidity filters: option open interest > 500 at chosen strike; bid-ask spread < 5% of mid; underlying market cap > $10B
 - Exclusions: earnings within DTE window; corporate actions within DTE window; IV rank > 90; option premium < $0.29
 
 **Leg 2 (index/vol long premium):**
+
 - SPY: front-month-plus for long puts (most liquid US equity option chain by orders of magnitude)
 - VIX: standard VIX options (cash-settled European)
 - No single-name long options for v0 (basis risk too noisy; index hedge is cleaner)
@@ -64,6 +70,7 @@ Hermes runs as a *two-leg book* with explicit coordination rules:
 ## 4. Entry rules
 
 **Leg 1 — Short put entry:**
+
 - Sell-to-open short put when delta is between -0.25 and -0.35 (target -0.30)
 - DTE 30–45 days
 - IV rank between 30 and 70
@@ -71,10 +78,12 @@ Hermes runs as a *two-leg book* with explicit coordination rules:
 - Cooldown: no new put on same underlying within 7 days of a closed position
 
 **Leg 2 — Long-vol entry (initial sizing):**
+
 - SPY puts: open a position whenever portfolio long-put notional protection drops below the sizing target (see Section 6). Buy 60–120 DTE puts at delta ≈ 0.08–0.10 (typically 8–12% OTM). One position per month if needed for replenishment.
 - VIX calls: maintain a continuously rolled position. Buy 60–90 DTE calls at strike 25–30. Roll when DTE drops below 30 days. One position per month, sized to ~3–5% of harvested premium for the prior month.
 
 **Anti-cyclicality discipline:**
+
 - If VIX < 15: *increase* hedge allocation by 20% (insurance is cheap; markets are complacent)
 - If VIX 15–25: standard hedge allocation (this is the base case)
 - If VIX > 25: maintain existing hedges; do NOT aggressively add (vol is already priced in; hedging at elevated VIX has poor entry economics)
@@ -85,11 +94,13 @@ Hermes runs as a *two-leg book* with explicit coordination rules:
 ## 5. Exit rules
 
 **Leg 1 — Short premium exits:**
+
 - Take-profit: GTC LMT order at 50% of credit received, attached on entry
 - Time stop: if DTE ≤ 7 and not closed at 50%, close at market on next open
 - Assignment: sell covered calls at delta ≈ 0.30, 30–45 DTE
 
 **Leg 2 — Long-vol exits:**
+
 - **Never close a profitable hedge to "lock in gains."** The whole point of convexity is to let it run when it works. If a hedge moves significantly into profit (>5× initial cost), consider rolling the strike up to maintain exposure, but do not close to take profit.
 - DTE-based roll: close and reopen when DTE < 30 days, regardless of P/L
 - Strike-based roll: if SPY has rallied significantly and your put is more than 20% OTM, roll up to bring it closer to delta target (cheap; restores convexity)
@@ -102,6 +113,7 @@ Hermes runs as a *two-leg book* with explicit coordination rules:
 ## 6. Position sizing
 
 **Leg 1 — Short premium sizing:**
+
 - Cash-secured: each position requires (strike × 100 × contracts) in available cash
 - Default size: 1 contract per position
 - Maximum per underlying: 5% of total account equity
@@ -113,6 +125,7 @@ Hermes runs as a *two-leg book* with explicit coordination rules:
 *Target.* Hedge book is sized so that a -20% one-month SPY move produces a hedge gain ≈ 50% of the expected wheel pain in that scenario. This is *partial* protection — sized to convert a catastrophic month into a survivable one, not to fully neutralize tail exposure. Full neutralization would cost essentially all the premium harvested.
 
 *Working assumptions for sizing:*
+
 - Wheel deployed at 50% of equity ($50k on a $100k account) → -20% market move with assignment cycle produces ~$8–12k of wheel pain (8–12% drawdown), accounting for assignment at strikes 3–5% below current spot, premium offset, and mark-to-market on open positions
 - SPY put at 0.10 delta, 90 DTE, on SPY ≈ $550: costs ~$700–900 per contract. In a -20% SPY move (to ~$440), that put goes from ~$495 strike, ~$0 intrinsic to ~$55 intrinsic + remaining time value, total ~$5,500–6,000. Net hedge gain per contract: ~$5,000.
 - To offset 50% of $10k wheel pain → need ~1 SPY put → ~$800 cost
@@ -158,11 +171,13 @@ Hermes runs as a *two-leg book* with explicit coordination rules:
 The whole point of barbell is to change the *shape* of returns, not just the mean. Falsification must be measured on shape, not just performance.
 
 **Shape criteria (the new and most important section):**
+
 - **Realized skew (12-month rolling, monthly observations):** must be > -0.5. If skew < -0.5 for two consecutive quarters, the hedge leg is undersized — recalibrate before any new short-premium entries.
 - **Worst-month / average-month ratio (12-month rolling):** must be ≤ 4×. A ratio of 6× or more indicates the strategy has retained too much concave exposure.
 - **Worst-month absolute floor:** any single month worse than -10% of equity triggers full strategy review.
 
 **Performance criteria (calibrated to the *hedged* return profile, not the unhedged one):**
+
 - 8-week paper-trade combined P/L (Leg 1 minus Leg 2 cost): > $150/closed-combo cycle (vs ~$440 unhedged baseline; reflects 18–22% hedge cost)
 - CSP win rate (not counting assignments): > 70% over 20+ trades
 - Combined book Sharpe (annualized): > 0.8 over 12+ weeks
@@ -255,4 +270,34 @@ These are decisions I made with reasonable defaults but that deserve your own an
 
 ## Appendix A — Strategies parked for vN
 
-[Unchanged from prior version: randomized signal selection, synthetic-short-straddle-via-STOP-orders, futures + TRAIL LMT, index options migration, scoring formula. All deferred with explicit graduation criteria.]
+Documented here so your 2.5 years of intellectual labor isn't lost, but kept out of v0 to prevent scope creep. Each parked strategy notes status and graduation criteria.
+
+### A.1 — Randomized signal selection (Poisson-Cauchy framework, June 2023 onward)
+
+**Status:** Parked indefinitely.
+**Rationale:** Theoretically interesting but mathematically suspect. Malkiel's argument is "you can't pick winners better than the market, buy the index" — *not* "random entries with asymmetric payoffs produce positive expectancy." In a fair-value options market, random selection has expected return zero minus commissions. The 2.5 years of elaboration did not produce a validated edge.
+**Graduation criteria:** demonstrate, with a formal backtest on 5+ years of historical data, that the random-selection framework with current filtering criteria produces Sharpe > 0.5 after realistic transaction costs. If achieved, revisit for vN.
+
+### A.2 — Synthetic-short-straddle-via-STOP-orders ("new options trading strategy", Nov 21, 2025 onward)
+
+**Status:** Parked. Has fundamental whipsaw exposure that complexification in Dec 22-25, 2025 notes does not resolve.
+**Rationale:** The structure is mathematically a short straddle around K, achieved via order management rather than two short options. In stable markets it collects premium; in choppy markets each cross of K destroys premium through transaction costs. The Dec 22, 2025 "half the premium per hedge" modification adds complexity without addressing the underlying issue.
+**Graduation criteria:** backtest demonstrates positive expectancy *after* transaction costs across at least three volatility regimes (low-vol stable, low-vol trending, high-vol). Until then, the wheel achieves the same exposure profile in a cleaner form.
+
+### A.3 — Futures + TRAIL LMT exit strategy (Sept-Nov 2023)
+
+**Status:** Parked. Promising framework but introduces leverage and 24/7 monitoring needs not appropriate for v0.
+**Rationale:** Index futures have legitimate advantages (cash settlement, 60/40 tax, low commissions, leverage). But MTM volatility and the documented failures of TRAIL LMT (premature triggers in normal price oscillations, the Nov 1, 2023 0DTE lesson) make this higher-touch than v0 should be.
+**Graduation criteria:** wheel is operating cleanly at scale; you have bandwidth for a higher-touch system; backtest shows TRAIL LMT parameters that don't trigger prematurely on at least 5 years of historical data.
+
+### A.4 — Index options (SPX/XEO/NDX) instead of stock options
+
+**Status:** Parked for v1, not eliminated.
+**Rationale:** Your Aug 15, 2023 notes correctly identify real advantages — cash settlement, 60/40 tax treatment (significant for taxable accounts), European exercise removes assignment risk. The reason v0 uses stock options is your validated universe (BAC, VZ, F, KO, GILD, INTC) has empirical track record; SPX-equivalent strategy does not yet.
+**Graduation criteria:** after v0 has 12 weeks of clean operation, run a parallel paper-trade test on XEO (S&P 100 European) wheel for 8 weeks. If P/L is competitive with stock-options wheel after tax adjustment, migrate.
+
+### A.5 — Scoring formula (`100 × Σ measure / |breakeven − spot| + 10 × NetPremium − ...`, July 24, 2023)
+
+**Status:** Useful framework, but not validated.
+**Rationale:** Constructed heuristic, not empirically tested predictor. Cannot be used as a primary filter until it's validated.
+**Graduation criteria:** if the wheel turns out to need a sub-ranking among multiple qualifying setups, backtest the scoring formula on historical wheel candidates and validate it correlates (r > 0.3) with realized P/L. Until then, "first qualifying trade per underlying per week" is sufficient v0 ranking.
