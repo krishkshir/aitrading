@@ -164,6 +164,7 @@ Cost as a fraction of premium — a diagnostic, not a control. The hedge dollar 
 - Commissions: IBKR retail tiered; pull actual from statements
 - Order timing: no orders within 15 min of close; auto-cancel unfilled at 15:45 ET
 - Bracketed orders use One-Cancels-Other (OCO)
+- Control-state check: read `~/.hermes/control.json` (per §11 L1/L2) immediately before each order submission; abort if state is `halt_new`/`freeze` or file is unreadable
 
 ---
 
@@ -205,7 +206,8 @@ The gate can only test what 8–12 weeks of paper data supports — i.e., Tier 1
 - Combined Sharpe (annualized): > 0.8
 - Max drawdown: < 8% of paper account
 - Trade count: > 25 closed Leg 1 combos
-- Hedge book maintained continuously (no 30+ day gaps in target coverage); kill switch tested live
+- Hedge book maintained continuously (no 30+ day gaps in target coverage)
+- Kill-switch stack tested live in paper: L0 `reqGlobalCancel()` script verified, per-leg `control.json` halt/resume verified, watchdog stale-heartbeat trigger verified, acknowledgment notification received
 
 *Post-launch commitment (not a gate — there isn't enough data yet)*: within the first 12 months live, the Tier 2 shape criteria (realized skew > -0.5; worst-month/average-month ≤ 4×; continued benchmark outperformance) must be established and thereafter evaluated mechanically per Section 9. Going live is conditional on pre-committing — in writing — to honor these once the data exists, including the commitment to increase the hedge if skew turns negative rather than rationalize shrinking it.
 
@@ -220,7 +222,13 @@ The gate can only test what 8–12 weeks of paper data supports — i.e., Tier 1
 - Runtime: local cron on Somerville machine for v0
 - Storage: SQLite for trade log
 - Monitoring: daily email at market close with: Leg 1 positions, Leg 2 positions, hedge coverage ratio (actual vs target), today's P&L by leg, errors. Weekly Saturday summary.
-- Kill switch: `~/.hermes/PAUSE` file checked at top of every cycle. Phone access via SSH. Distinct kill switches per leg: pausing Leg 1 should NOT pause Leg 2 (continuing to roll hedges during crisis is critical).
+- Kill switch — layered design (defense-in-depth):
+  - **L0 — Broker-side panic script (last resort, fastest):** standalone one-shot script that connects to IBKR and calls `reqGlobalCancel()` — cancels all open orders regardless of origin, independent of the agent. IBKR does not auto-cancel orders on API disconnect; a crashed agent leaves live orders working. L0 exists precisely for that scenario. Build and test in paper before going live.
+  - **L1 — Structured per-leg control file:** `~/.hermes/control.json` encodes `{leg1: run|halt_new|freeze, leg2: run|halt_new|freeze}`. One file per leg or one structured file; never a single shared `PAUSE` flag, which cannot express the required per-leg state. "Pause Leg 1, keep rolling Leg 2 hedges" must be directly representable.
+  - **L2 — Fail-closed, checked before every order:** control state read at cycle start *and* immediately before each order submission. Any read error, malformed file, or missing file → treat as `halt_new` for both legs. Cannot determine state → halt.
+  - **L3 — Dead-man's switch / watchdog:** agent writes a heartbeat timestamp each cycle. A separate watchdog (second cron job, or checked on re-entry) auto-halts new entries if the heartbeat is stale (>2 expected cycle intervals) or if broker/market-data connectivity is lost. If the agent is silent with open orders, watchdog invokes L0.
+  - **L4 — Acknowledgment:** on any state change the agent writes `~/.hermes/control.ack` (resolved state + timestamp) and pushes a notification via the §11 monitoring channel. Kill switches you cannot confirm are not trustworthy in an emergency.
+  - Manual control path: edit `control.json` over SSH (Somerville box), or run L0 script directly. SSH remains a valid trigger; it is no longer the *only* safety mechanism.
 - Triggers for manual review: VIX > 25, single-day SPX move > 3%, any Leg 1 assignment, any hedge expiring more than 5× its cost (large convex win — review whether to roll up strike)
 
 ---

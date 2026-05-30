@@ -123,7 +123,7 @@ Never use STOP LOSS market orders — only STOP LMT on either leg.
 | Runtime | Local cron on Somerville machine (v0) |
 | Storage | SQLite trade log |
 | Monitoring | Daily email at close (Leg 1 positions, Leg 2 positions, hedge coverage ratio, P&L by leg, errors); weekly Saturday summary |
-| Kill switch | `~/.hermes/PAUSE` — **distinct switches per leg**; pausing Leg 1 must NOT pause Leg 2 (rolling hedges during crisis is critical) |
+| Kill switch | Layered (L0–L4): **L0** standalone `reqGlobalCancel()` panic script (broker-side, IBKR does not auto-cancel on disconnect); **L1** `~/.hermes/control.json` with per-leg states (`run\|halt_new\|freeze`); **L2** fail-closed check before every order submission; **L3** watchdog on heartbeat staleness; **L4** acknowledgment via monitoring channel. SSH to Somerville box for manual edits; no longer the only path. |
 | Manual review triggers | VIX > 25; single-day SPX move > 3%; any Leg 1 assignment; any hedge expiring >5× cost |
 
 ## Development Phases
@@ -140,7 +140,8 @@ Never use STOP LOSS market orders — only STOP LMT on either leg.
 - Combined Sharpe (annualized): > 0.8
 - Max drawdown: < 8% of paper account
 - Closed Leg 1 combos: > 25
-- Hedge book maintained continuously (no 30+ day gaps); kill switch tested live
+- Hedge book maintained continuously (no 30+ day gaps)
+- Kill-switch stack tested live in paper (L0 panic script, per-leg control file, watchdog, acknowledgment)
 
 *Not gate conditions (diagnostics only):* CSP win rate, per-combo P/L — the shape criteria (skew, worst-month ratio) require 12 months of data and cannot be evaluated at the paper gate.
 

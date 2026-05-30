@@ -42,4 +42,4 @@ Make any such updates and commit them before finishing the task.
 | Historical options data | ORATS Delayed ($99/mo) |
 | Trade log | SQLite (outside repo, gitignored) |
 | Runtime | Local cron |
-| Kill switch | `~/.hermes/PAUSE` — **distinct per-leg switches** (pausing Leg 1 must not pause Leg 2) |
+| Kill switch | Layered L0–L4: L0 `reqGlobalCancel()` panic script; L1 `~/.hermes/control.json` per-leg states; L2 fail-closed pre-order check; L3 watchdog on heartbeat; L4 ack notification. Pausing Leg 1 must not pause Leg 2. |
