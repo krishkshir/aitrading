@@ -274,7 +274,7 @@ The benchmark must be built and validated before Phase 2 (paper trade) starts, n
 - No lookahead in the universe or weights (universe fixed at backtest start; weights from start-of-month prices, not end-of-month)
 - Corporate actions handled consistently (splits, spin-offs, mergers) — verify your ORATS or equity data source covers these for 2018–2024
 - Leg 2 costs are applied symmetrically in both the strategy and the benchmark; if you haircut fills in the strategy, apply the same haircut in the benchmark's Leg 2
-- Sanity check: run the benchmark alone (no Leg 1 either side) against the S&P 500 for 2018–2024 and confirm it looks like a low-beta, dividend-tilted equity portfolio with a Leg-2 drag — if it doesn't, something in the construction is wrong before you've compared anything
+- Sanity check: run the benchmark alone (no Leg 1 either side) against the S&P 500 for 2018–2024 and confirm it looks like a low-beta, dividend-tilted equity portfolio with a Leg-2 drag — if it doesn't, something in the construction is wrong before you've compared anything.
 
 #### Phase 1 sequencing
 
@@ -294,9 +294,9 @@ The benchmark must be built and validated before Phase 2 (paper trade) starts, n
 - [x] You can explain why this is a barbell (not just "wheel with insurance") to a competent friend in under 2 minutes
 - [x] You'd be willing to walk away from this strategy if shape criteria trigger — *honestly*
 - [x] You have psychologically committed to the hedge bleeding money in benign months — *before* you start
-- [ ] Kill switch design specified concretely, with distinct switches per leg
-- [ ] Backtest data availability confirmed for both single-name and index options
-- [ ] Benchmark construction decisions locked (equity weights, rebalancing, dividend treatment, cost model symmetry) — these must be agreed before Phase 1 code begins, not during it
+- [x] Kill switch design specified concretely, with distinct switches per leg
+- [x] Backtest data availability confirmed for both single-name and index options
+- [x] Benchmark construction decisions locked (equity weights, rebalancing, dividend treatment, cost model symmetry) — these must be agreed before Phase 1 code begins, not during it
 
 When all eight are true, Phase 1 starts.
 
