@@ -241,7 +241,7 @@ Paper-trade results must meet ALL over 8+ weeks before real capital:
 
 ## Sign-off checklist (end of Phase 0)
 
-- [ ] Every section reviewed and either accepted or modified
+- [x] Every section reviewed and either accepted or modified
 - [ ] Hedge-sizing math reviewed and either accepted or refined with your own assumptions
 - [ ] Falsification criteria personally committed to in writing — including the shape criteria
 - [ ] You can explain why this is a barbell (not just "wheel with insurance") to a competent friend in under 2 minutes
