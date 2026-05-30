@@ -1,31 +1,26 @@
 # Hermes — Strategy v0 Spec (barbell revision)
 
 > **Revision rationale.** The prior spec described pure short-premium harvesting (CSPs + covered calls). This is structurally concave — the canonical "pennies in front of a steamroller" payoff that Taleb argues against, regardless of positive expected value. This revision restructures Hermes as a **barbell**: short-premium harvesting on one side, long-vol tail hedging on the other, with the latter funded by a fraction of the premium harvested by the former. The combined exposure is intended to have positive or near-zero skew, not the deeply negative skew of unhedged short vol.
->
+
+> **Economics correction (post-literature-review).** An earlier draft of this section claimed the edge was a volatility-premium differential — collecting a large premium on single-name short puts and paying a small one on index hedges. The empirical literature disconfirms this. The single-name variance risk premium is approximately zero (Carr & Wu 2009; Driessen, Maenhout & Vilkov 2009); the large negative VRP lives in the index, not in single names. The wheel's real expected-return engine is therefore the equity risk premium (a short put is, by put-call parity, a covered-call-equivalent net-long-equity position), not a vol harvest. The index hedge is honest negative carry — a cost paid for convexity — not a "funded" leg of a favorable spread. See Section 1 for the corrected framing and Appendix A.6 for the dispersion trade the literature actually supports.
+
 > The expected return is lower than the unhedged version. That is the deliberate trade. The asymmetry being purchased is *survival of regime change*, which is the only thing that distinguishes a strategy that compounds for 20 years from a strategy that compounds for 8 years and then dies in a single month.
 
 ---
 
 ## 1. Edge hypothesis
 
-**One-sentence claim:** We harvest the volatility risk premium on liquid US equities through cash-secured short puts at delta ≈ 0.30 with 30–45 DTE, and we deliberately reinvest 18–22% of harvested premium into long out-of-the-money index puts and VIX calls, producing a barbell payoff: bounded participation in benign regimes, convex protection in crisis regimes.
+**One-sentence claim:** Hermes is a structured net-long-equity income strategy with a tail hedge. It collects the equity risk premium (plus a near-zero single-name volatility premium) by selling cash-secured puts at delta ≈ 0.30, 30–45 DTE, on liquid large-caps, and it pays explicit negative carry for long index puts and VIX calls that supply convex protection in correlated crashes. The combined payoff is a barbell: bounded participation in benign regimes, convexity in crisis regimes.
 
-**Why this framing matters.** We are not "selling insurance" in isolation. We are *running an insurance book that also buys reinsurance*. The premium gap between what we collect (single-name short puts, where retail and institutional hedging inflate IV) and what we pay (index/VIX long vol, where institutional supply is deeper and the premium is smaller) is our edge. This gap is small in absolute terms but structurally robust; it does not require us to be right about market direction, and it does not depend on the steamroller never arriving.
+**What the edge actually is (and isn't)**. The edge is not a volatility-risk-premium harvest. The empirical record is clear that the individual-equity VRP is approximately zero on average: Carr & Wu (2009) find the VRP "significantly negative for the S&P 100 whereas the variance risk premiums on individual stocks are often zero or even positive," and Driessen, Maenhout & Vilkov (2009) find "index options have a large negative variance risk premium whereas individual options on all index components do not." By put-call parity a cash-secured short put is a covered-call-equivalent — net long the underlying with capped upside — so the dominant source of expected return is the equity risk premium, the compensation for holding quality large-caps with an assignment buffer. The small-to-zero single-name VRP is a minor contributor; it is not a structural edge to be relied upon, and any name- or timing-specific vol edge (e.g., from the IV-rank entry filter) must be demonstrated in backtest, not assumed.
 
-**Why the inefficiency exists:**
+**Why the premium exists (it's a risk premium, not an inefficiency)**. The VRP that does exist — concentrated in the index — is compensation for bearing risk, not a mispricing. It is "compensation to traders that are willing to provide variance and price-jump protection to other investors" and is "largely a compensation for downside semivariance risk." This reframing matters for the falsification logic: we are not betting that a mispricing persists; we are accepting fair compensation for bearing equity and crash risk, and capping the tail. There is no expectation that the premium is "arbitraged away," because there is nothing to arbitrage — it is a price for risk.
 
-- Single-name IV on quality large-caps is structurally bid up by institutional hedgers and retail OTM lottery-ticket buyers
-- Index/VIX long vol is supplied by a larger pool of vol sellers (systematic strategies, market makers, retail) which compresses its premium relative to single-name short vol
-- The premium *differential* between paid and received vol is the harvestable spread; the absolute level of either is not the edge
+**Why the hedge is worth its cost despite being "expensive."** The index hedge runs negative carry: index puts and VIX calls are expensive precisely because the index carries the large negative VRP and prices the correlation risk premium (Driessen-Maenhout-Vilkov: the gap between index and single-name VRP "is only reconcilable with priced correlation risk"). But that expensiveness is the same fact as their being good insurance — index puts pay off in exactly the correlated, market-wide crash that detonates a short single-name-put book. Paying the correlation premium for protection that is genuinely correlated with our tail is rational. Taleb's barbell never required the convex leg to be cheap, only that it pay off in the tail. We budget the hedge honestly as a cost, not as a "funded" leg of a favorable spread.
 
-**Why hasn't it been arbitraged away?**
+**The directional caveat we are deliberately on the wrong side of.** On a pure-volatility basis, selling single-name vol and buying index vol is the unfavorable side of the dispersion trade — the literature shows the profitable vol trade is the reverse (sell index, buy single-names) (Driessen-Maenhout-Vilkov 2009). We accept this because (a) our return engine is the equity risk premium, not vol, and (b) the "wrong-way" vol leg is exactly what gives us crash convexity. The favorable dispersion trade is noted as a future direction in Appendix A.6, not pursued in v0 (it is capital-intensive, correlation-exposed, and operationally heavier).
 
-- Operationally complex: requires running two coordinated books with opposite vol exposure
-- Psychologically difficult: the long-vol leg looks like wasted money for years at a time
-- Capital-intensive on the short leg (cash-secured)
-- Most retail vol traders run pure short vol; most institutional tail-risk funds run pure long vol; few do both
-
-**Prior evidence:** Your 2025 single-leg trading produced ~$14k on the harvest side (94% win rate on covered calls, ~$440 avg combo P/L on wheel). The harvest edge is empirically validated in your own data. The hedge leg is new in v0 — its purpose is to reshape the distribution of returns, not to add expected return.
+**Prior evidence**: Your 2025 single-leg trading produced ~$14k on the income side (94% win rate on covered calls, ~$440 avg combo P/L on wheel). Read correctly, that is equity-risk-premium income with a small vol cushion on quality names — consistent with the framing above, not evidence of a single-name vol edge. The hedge leg is new in v0; its purpose is to reshape the distribution of returns, at a known cost, not to add expected return.
 
 ---
 
@@ -44,7 +39,7 @@ Hermes runs as a *two-leg book* with explicit coordination rules:
 - Long SPY puts: 60–120 DTE, delta ≈ 0.08–0.10, far OTM
 - Long VIX calls: 60–90 DTE, strike 25–30, very small allocation
 - Generates expected loss in benign months; expected large gain in crisis months
-- Funded by ~18–22% of harvested premium from Leg 1
+- Costs ~18–22% of harvested income as negative carry (a deliberate expense for convexity, not a "funded" spread leg)
 
 **Coordination:** the two legs are *not* hedges of specific positions — they are exposures of opposite convexity in the same portfolio. The wheel is not delta-hedged. The hedge is not position-by-position. The combined book is structured for distributional shape, not position-level neutrality.
 
@@ -301,3 +296,10 @@ Documented here so your 2.5 years of intellectual labor isn't lost, but kept out
 **Status:** Useful framework, but not validated.
 **Rationale:** Constructed heuristic, not empirically tested predictor. Cannot be used as a primary filter until it's validated.
 **Graduation criteria:** if the wheel turns out to need a sub-ranking among multiple qualifying setups, backtest the scoring formula on historical wheel candidates and validate it correlates (r > 0.3) with realized P/L. Until then, "first qualifying trade per underlying per week" is sufficient v0 ranking.
+
+### A.6 — Dispersion trade (sell index vol, buy single-name vol)
+
+**Status**: Parked for vN (likely v3+). This is the vol trade the literature actually supports — the favorable side of the spread Hermes v0 deliberately sits on the wrong side of.
+**Rationale**: Driessen, Maenhout & Vilkov (2009) show that because the index carries a large negative VRP while constituents carry approximately zero, "a strategy that sells index options and buys individual options will lead to a large Sharpe ratio." The edge is the correlation risk premium — payment for bearing the risk that correlations spike in a crash. Selling index vol while owning single-name vol is, structurally, short correlation.
+**Why it is NOT in v0.** (a) It is the opposite convexity profile from the tail hedge — short correlation means you are short the crash, exactly the exposure Hermes is trying to reduce. Running it alongside the wheel would compound, not offset, crash risk. (b) DMV themselves find the premium "cannot be exploited with realistic trading frictions" — a limits-to-arbitrage result; the gross alpha is real but net-of-cost capture is hard. (c) It is capital- and operationally heavy (many single-name legs against an index leg). (d) It demands true regime awareness — the trade blows up in correlation spikes, which is precisely 2008/2020/Aug-2024.
+**Graduation criteria**: Only consider after v0 is running cleanly and you have a validated correlation-regime detector; backtest must demonstrate net-of-cost positive returns across at least one correlation-spike episode, with explicit modeling of the friction wall DMV document. Until then this is a known, literature-supported edge that you are choosing not to harvest because its risk profile is opposite your primary objective (crash survival).

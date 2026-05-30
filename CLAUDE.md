@@ -17,7 +17,7 @@ This is a **specification-stage** repository — no application code exists yet.
 
 ## Strategy Overview
 
-Hermes v0 is a **barbell options strategy**: Leg 1 sells cash-secured puts (delta ≈ 0.30, 30–45 DTE) on a fixed single-name universe (BAC, VZ, F, KO, GILD, INTC), turning assigned shares into a covered-call wheel. Leg 2 buys long OTM SPY puts and VIX calls, funded by 18–22% of Leg 1 premium, to inject convexity into the return distribution. Falsification is measured primarily on *distribution shape* (realized skew, worst-month ratio), not just P&L.
+Hermes v0 is a **barbell options strategy**: Leg 1 sells cash-secured puts (delta ≈ 0.30, 30–45 DTE) on a fixed single-name universe (BAC, VZ, F, KO, GILD, INTC), collecting the equity risk premium (the single-name VRP is approximately zero per Carr & Wu 2009 and Driessen-Maenhout-Vilkov 2009 — the dominant return engine is net-long-equity exposure). Leg 2 buys long OTM SPY puts and VIX calls at ~18–22% of Leg 1 income as honest negative carry for convexity. Falsification is measured primarily on *distribution shape* (realized skew, worst-month ratio), not just P&L.
 
 ## Hard Constraints
 

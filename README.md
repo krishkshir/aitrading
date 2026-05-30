@@ -1,23 +1,21 @@
 # AITrading — Hermes v0
 
-An automated options trading system built as a **barbell**: short-volatility premium harvesting on one leg, long-volatility tail hedging on the other. The hedge is funded by a fraction of the premium the harvest leg collects. The combined exposure is designed to have positive or near-zero skew — not the deeply negative skew of unhedged short vol.
+An automated options trading system built as a **barbell**: a net-long-equity income engine on one leg, long-volatility tail hedging on the other. The hedge runs as honest negative carry — a deliberate cost paid for convexity, not a "funded" spread. The combined exposure is designed to have positive or near-zero skew — not the deeply negative skew of unhedged short vol.
 
 The expected return is lower than an unhedged wheel. That is the deliberate trade. The asymmetry purchased is *survival of regime change*, which is what separates a strategy that compounds for 20 years from one that compounds for 8 years and dies in a single month.
 
 ## Strategy Overview
 
-**One-sentence claim:** Harvest the volatility risk premium on liquid US equities through cash-secured short puts at delta ≈ 0.30 with 30–45 DTE, and deliberately reinvest 18–22% of harvested premium into long OTM index puts and VIX calls, producing a barbell payoff: bounded participation in benign regimes, convex protection in crisis regimes.
+**One-sentence claim:** Collect the equity risk premium (plus a near-zero single-name volatility premium) by selling cash-secured puts at delta ≈ 0.30, 30–45 DTE on liquid large-caps, and pay explicit negative carry (~18–22% of income) for long index puts and VIX calls that supply convex protection in correlated crashes: bounded participation in benign regimes, convexity in crisis regimes.
 
-**Why the inefficiency exists:**
-- Single-name IV on quality large-caps is structurally bid up by institutional hedgers and retail OTM lottery-ticket buyers
-- Index/VIX long vol is supplied by a larger pool of vol sellers (systematic strategies, market makers, retail), compressing its premium relative to single-name short vol
-- The *differential* between paid and received vol is the harvestable spread — the absolute level of either is not the edge
+**What the edge actually is (and isn't):** The dominant return engine is the equity risk premium — a short put is, by put-call parity, a covered-call-equivalent net-long-equity position. The single-name volatility risk premium is approximately zero (Carr & Wu 2009; Driessen, Maenhout & Vilkov 2009 — the large negative VRP lives in the index, not in individual stocks). This is not an inefficiency to arbitrage away; it is fair compensation for bearing equity and crash risk.
 
-**Why it persists:**
-- Operationally complex: requires running two coordinated books with opposite vol exposure
-- Psychologically difficult: the long-vol leg looks like wasted money for years at a time
-- Capital-intensive on the short leg (cash-secured)
-- Most retail vol traders run pure short vol; most institutional tail-risk funds run pure long vol; few do both
+**Why the hedge costs what it does:** Index puts and VIX calls are expensive precisely because they carry the index VRP and price the correlation risk premium (Driessen-Maenhout-Vilkov: the gap between index and single-name VRP is "only reconcilable with priced correlation risk"). That expensiveness is why they pay off in exactly the correlated, market-wide crash that detonates a short single-name-put book. The hedge is budgeted honestly as a cost, not expected to be "cheap."
+
+**Why the strategy is durable despite the hedge cost:**
+- Operationally complex: two coordinated books with opposite convexity
+- Psychologically difficult: the hedge looks like wasted money for years at a time
+- The return engine (equity risk premium) is structural and persistent, not a mispricing
 
 ## Structure
 
@@ -29,7 +27,7 @@ The expected return is lower than an unhedged wheel. That is the deliberate trad
 **Leg 2 — Tail hedge (long vol, convex):**
 - Long SPY puts: 60–120 DTE, delta ≈ 0.08–0.10, far OTM
 - Long VIX calls: 60–90 DTE, strike 25–30
-- Funded by ~18–22% of harvested premium from Leg 1
+- Costs ~18–22% of Leg 1 income as deliberate negative carry (not a "funded" spread leg)
 - Expected to lose money most months; expected to produce large gains in crisis months
 
 The two legs are exposures of opposite convexity in the same portfolio — not position-level hedges. The combined book is structured for distributional shape, not position-level neutrality.
@@ -88,8 +86,8 @@ Never use STOP LOSS market orders — only STOP LMT on either leg.
 
 **Leg 2 (the load-bearing math):**
 - Sized so that a −20% one-month SPY move produces a hedge gain ≈ 50% of expected wheel pain — converts a catastrophic month into a survivable one, not full neutralization
-- On a $100k account: ~1 SPY put contract (~$800 cost, spread over 3 months ≈ $270/month) + VIX calls (~3–5% of harvested premium ≈ $30/month) = ~$300/month combined hedge cost
-- At $500–1,000/month harvested premium → hedge cost is 18–22% of harvested premium
+- On a $100k account: ~1 SPY put contract (~$800 cost, spread over 3 months ≈ $270/month) + VIX calls (~3–5% of income ≈ $30/month) = ~$300/month combined hedge cost
+- At $500–1,000/month income → hedge cost is 18–22% of income (explicit negative carry, budgeted as such)
 - Recompute hedge requirements monthly; do not skip a hedge purchase because "this month feels safe"
 
 ## Risk Limits
@@ -172,6 +170,7 @@ Never use STOP LOSS market orders — only STOP LMT on either leg.
 - **A.3** — Futures + TRAIL LMT exit (leverage and 24/7 monitoring overhead not appropriate for v0)
 - **A.4** — Index options (SPX/XEO/NDX) — target v1 after 12 weeks of clean v0 operation; XEO has better tax treatment
 - **A.5** — Scoring formula for sub-ranking qualifying setups (not yet empirically validated)
+- **A.6** — Dispersion trade (sell index vol, buy single-name vol) — the literature-supported favorable side of the vol spread (Driessen-Maenhout-Vilkov 2009); parked because its convexity profile is opposite to Hermes v0's crash-survival objective, and net-of-cost capture is hard (friction wall documented by DMV)
 
 ## Repository Structure
 
