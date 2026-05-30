@@ -248,18 +248,47 @@ The gate can only test what 8–12 weeks of paper data supports — i.e., Tier 1
 - Paper-trade duration: 8 weeks minimum; extend to 12 weeks if any month had < 4 closed Leg 1 combos
 - Data: confirm ORATS history covers both single-name option chains and SPY/VIX options back to 2018
 
+### Benchmark construction — explicit Phase 1 deliverable
+
+The benchmark must be built and validated before Phase 2 (paper trade) starts, not assembled ad hoc during it. The primary falsification criterion in Section 9 depends entirely on the benchmark's integrity — a sloppy benchmark makes the central test meaningless. The following construction decisions must be locked in at the start of Phase 1, in code, not left as interpretation:
+
+#### Construction specification
+
+- Universe: identical to the current Leg 1 set at the backtest start date. For the historical window (2018–2024) this includes INTC even though it has since been removed; if you exclude it retroactively you introduce lookahead. Run both (with and without INTC) and report both; the gap between them is your estimate of universe-selection impact.
+- Equity weights: equal-dollar weight across universe names, rebalanced monthly. Alternatives (market-cap, equal-vol) are noted in Open Questions; equal-dollar is the v0 default. Commit to one before writing the first line of code.
+- Rebalancing: monthly, at the same calendar timing as Leg 1 position reviews. Rebalancing itself incurs equity transaction costs — include them.
+- Dividends: reinvested at ex-dividend date. Do not treat dividends as cash income taken out of the portfolio; that would inflate the benchmark's cash yield relative to the wheel and distort the comparison.
+- Leg 2: identical to the strategy's Leg 2 — same instrument, same entry DTE, same strike-selection logic, same roll rules, same Muravyev-Pearson cost model for fills. The comparison must hold Leg 2 constant and vary only whether Leg 1 is wheel or buy-and-hold. Do NOT run a no-hedge benchmark; that would conflate the hedge's contribution with the wheel's, and conflating them is the error the whole comparison is designed to avoid.
+- Performance metrics: total return, annualized Sharpe, max drawdown, realized skew (monthly observations), worst-month/average-month ratio — identical metrics to Sections 9 and 10. Produce side-by-side output for every take-profit configuration sweep.
+
+#### Validity checks before Phase 2 begins
+
+- No lookahead in the universe or weights (universe fixed at backtest start; weights from start-of-month prices, not end-of-month)
+- Corporate actions handled consistently (splits, spin-offs, mergers) — verify your ORATS or equity data source covers these for 2018–2024
+- Leg 2 costs are applied symmetrically in both the strategy and the benchmark; if you haircut fills in the strategy, apply the same haircut in the benchmark's Leg 2
+- Sanity check: run the benchmark alone (no Leg 1 either side) against the S&P 500 for 2018–2024 and confirm it looks like a low-beta, dividend-tilted equity portfolio with a Leg-2 drag — if it doesn't, something in the construction is wrong before you've compared anything
+
+#### Phase 1 sequencing
+
+1. Build and validate the benchmark simulation first (weeks 1–2 of Phase 1)
+1. Build the wheel simulation against the same data (weeks 2–4)
+1. Run the take-profit parameter sweep comparing both (weeks 5–6)
+1. Produce a single output: for each take-profit level, does wheel-plus-hedge beat equity-plus-hedge? By how much? Under which regimes does it lose?
+1. Only after step 4 is complete does the strategy have an honest go/no-go basis.
+
 ---
 
 ## Sign-off checklist (end of Phase 0)
 
 - [x] Every section reviewed and either accepted or modified
 - [x] Hedge-sizing math reviewed and either accepted or refined with your own assumptions
-- [ ] Falsification criteria personally committed to in writing — including the shape criteria
-- [ ] You can explain why this is a barbell (not just "wheel with insurance") to a competent friend in under 2 minutes
-- [ ] You'd be willing to walk away from this strategy if shape criteria trigger — *honestly*
-- [ ] You have psychologically committed to the hedge bleeding money in benign months — *before* you start
+- [x] Falsification criteria personally committed to in writing — including the shape criteria
+- [x] You can explain why this is a barbell (not just "wheel with insurance") to a competent friend in under 2 minutes
+- [x] You'd be willing to walk away from this strategy if shape criteria trigger — *honestly*
+- [x] You have psychologically committed to the hedge bleeding money in benign months — *before* you start
 - [ ] Kill switch design specified concretely, with distinct switches per leg
 - [ ] Backtest data availability confirmed for both single-name and index options
+- [ ] Benchmark construction decisions locked (equity weights, rebalancing, dividend treatment, cost model symmetry) — these must be agreed before Phase 1 code begins, not during it
 
 When all eight are true, Phase 1 starts.
 

@@ -130,8 +130,8 @@ Never use STOP LOSS market orders — only STOP LMT on either leg.
 
 | Phase | Description | Gate |
 |-------|-------------|------|
-| 0 | Spec review and sign-off | All sign-off checklist items complete |
-| 1 | Backtest (Jan 2018 – Dec 2024) | Validated across Feb 2018, COVID March 2020, 2022 bear, Aug 2024; **must include Leg 2 throughout**; take-profit parameter sweep (25%/50%/75%/hold) per name; wheel-plus-hedge must beat equity-plus-hedge on risk-adjusted terms after all costs |
+| 0 | Spec review and sign-off | All sign-off checklist items complete (5/8 checked; kill switch design, data availability, and benchmark construction decisions remain) |
+| 1 | Backtest (Jan 2018 – Dec 2024) | Benchmark built and validated first (weeks 1–2); wheel simulation built against same data (weeks 2–4); take-profit sweep (25%/50%/75%/hold) per name comparing both (weeks 5–6); wheel-plus-hedge must beat equity-plus-hedge on risk-adjusted terms after all costs; validated across Feb 2018, COVID March 2020, 2022 bear, Aug 2024; Leg 2 included throughout |
 | 2 | Paper trading | 8–12 weeks, 25+ closed Leg 1 combos |
 | 3 | Live trading | All Phase 3 gates met |
 
