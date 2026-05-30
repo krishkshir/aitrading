@@ -96,7 +96,7 @@ Hermes runs as a *two-leg book* with explicit coordination rules:
 **Leg 1 — Short premium exits:**
 
 - Take-profit: GTC LMT order at 50% of credit received, attached on entry
-- Time stop: if DTE ≤ 7 and not closed at 50%, close at market on next open
+- Time stop: if DTE ≤ 7 and not closed at 50%, close using a marketable limit a little after the open.
 - Assignment: sell covered calls at delta ≈ 0.30, 30–45 DTE
 
 **Leg 2 — Long-vol exits:**

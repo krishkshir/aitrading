@@ -69,7 +69,7 @@ The two legs are exposures of opposite convexity in the same portfolio — not p
 
 **Leg 1 — Short premium exits:**
 - Take-profit: GTC LMT at 50% of credit received, attached at entry
-- Time stop: close at market if DTE ≤ 7 and position not yet closed
+- Time stop: close with a marketable limit order shortly after the open if DTE ≤ 7 and position not yet closed
 - Assignment: sell covered calls at delta ≈ 0.30, 30–45 DTE
 
 **Leg 2 — Long-vol exits:**
