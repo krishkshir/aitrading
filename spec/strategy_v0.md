@@ -94,7 +94,8 @@ Hermes runs as a *two-leg book* with explicit coordination rules:
 
 **Leg 1 — Short premium exits:**
 
-- Take-profit: GTC LMT order at 50% of credit received, attached on entry
+- Take-profit: GTC LMT order at 50% of credit received, attached on entry. Rationale is gamma/tail reduction, not profit-banking — the back half of a short put's life earns the remaining premium slowly while gamma (and thus tail sensitivity) rises, so closing at 50% exits the worst risk-adjusted portion of the trade and reduces the concavity Leg 2 has to insure. *The 50% level is a swept parameter, not a fixed constant — backtest 25%/50%/75%/hold-to-expiry per name (see Section 13); the optimal level may differ across names and may not be 50%.* Carry 50% as the v0 default because it is your single most disciplined, actually-executed automation pattern (2025 data), not because it is validated.
+Known cost (new under the equity-risk-premium framing): closing early plus the 7-day cooldown (Section 4) creates recurring time out of the market. Since the dominant return engine is the equity risk premium, every day flat is forgone equity exposure — turnover is no longer "free" the way the old vol-harvest framing implied. Small on liquid names, but real and structural; Section 13 requires it to be measured.
 - Time stop: if DTE ≤ 7 and not closed at 50%, close using a marketable limit a little after the open.
 - Assignment: sell covered calls at delta ≈ 0.30, 30–45 DTE
 
@@ -228,6 +229,8 @@ Paper-trade results must meet ALL over 8+ weeks before real capital:
 ## 13. Validation plan
 
 - Backtest window: Jan 1, 2018 — Dec 31, 2024 (must include Feb 2018, COVID March 2020, 2022 bear, Aug 2024)
+- Take-profit parameter sweep: test close-at-25% / 50% / 75% / hold-to-expiry, per name, measured net of Muravyev-Pearson transaction costs AND net of the time-out-of-market drag (the equity risk premium forgone during the flat periods created by early close + 7-day cooldown). Report the optimal level per name; do not assume 50% is correct.
+- Benchmark requirement: every configuration must be measured against the equity-plus-hedge benchmark (buy-and-hold the universe + Leg 2), not just against zero. The take-profit rule, the wheel structure, and the turnover they create only earn their keep if wheel-plus-hedge beats equity-plus-hedge on risk-adjusted terms after all costs. If it doesn't, the simpler book wins — a clean, honest result.
 - Critical: backtest must include Leg 2 throughout. A backtest of Leg 1 alone is not valid — it tests the wrong strategy.
 - Out-of-sample holdout: Q4 2024
 - Walk-forward: monthly re-evaluation of universe filters; fixed entry/exit and sizing rules

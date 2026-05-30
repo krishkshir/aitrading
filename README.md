@@ -69,7 +69,7 @@ The two legs are exposures of opposite convexity in the same portfolio — not p
 ## Exit Rules
 
 **Leg 1 — Short premium exits:**
-- Take-profit: GTC LMT at 50% of credit received, attached at entry
+- Take-profit: GTC LMT at 50% of credit received, attached at entry. Rationale: closing at 50% exits the worst risk-adjusted portion of the trade (gamma rises in the back half while remaining premium shrinks). **50% is the v0 default pending backtest sweep** — 25%/50%/75%/hold-to-expiry must be tested per name, net of transaction costs and time-out-of-market drag (see Validation Plan). Known cost under the ERP framing: early close + 7-day cooldown creates recurring flat periods, and every day flat is forgone equity exposure — turnover is not free
 - Time stop: close with a marketable limit order shortly after the open if DTE ≤ 7 and position not yet closed
 - Assignment: sell covered calls at delta ≈ 0.30, 30–45 DTE
 
@@ -131,7 +131,7 @@ Never use STOP LOSS market orders — only STOP LMT on either leg.
 | Phase | Description | Gate |
 |-------|-------------|------|
 | 0 | Spec review and sign-off | All sign-off checklist items complete |
-| 1 | Backtest (Jan 2018 – Dec 2024) | Validated across Feb 2018, COVID March 2020, 2022 bear, Aug 2024; **must include Leg 2 throughout** |
+| 1 | Backtest (Jan 2018 – Dec 2024) | Validated across Feb 2018, COVID March 2020, 2022 bear, Aug 2024; **must include Leg 2 throughout**; take-profit parameter sweep (25%/50%/75%/hold) per name; wheel-plus-hedge must beat equity-plus-hedge on risk-adjusted terms after all costs |
 | 2 | Paper trading | 8–12 weeks, 25+ closed Leg 1 combos |
 | 3 | Live trading | All Phase 3 gates met |
 
