@@ -50,9 +50,13 @@ Hermes runs as a *two-leg book* with explicit coordination rules:
 **Leg 1 (single-name short premium):**
 
 - US-listed optionable equities, Penny Interval Program members
-- Starting set: BAC, VZ, F, KO, GILD, INTC
-- Liquidity filters: option open interest > 500 at chosen strike; bid-ask spread < 5% of mid; underlying market cap > $10B
-- Exclusions: earnings within DTE window; corporate actions within DTE window; IV rank > 90; option premium < $0.29
+- **Core set**: KO, VZ, BAC. Selected for low-to-moderate idiosyncratic volatility, dividend durability, and (for BAC) tail risk that is largely systematic and therefore covered by the Leg 2 index hedge.
+- **Optional reduced-size satellites**: F, GILD. Higher-premium but carry risk the hedge does not cover — F's dividend was suspended in the 2020 COVID drawdown (cyclical dividend cut in exactly the regime where you'd be assigned); GILD carries binary, idiosyncratic pipeline/FDA-decision risk. Include only if explicitly seeking cyclical/idiosyncratic exposure, and size at ≤ half a core position.
+- **Removed**: INTC. Suspended its dividend starting Q4 2024, still suspended through 2025, deeply negative free cash flow, live turnaround/solvency tail, high idiosyncratic volatility. Fails every reframed selection criterion; its 2025 premium-capture record reflects a benign regime that did not test its tail.
+- **Selection rule for adding names**: rank Penny-Program-liquid candidates by a composite of (a) low idiosyncratic volatility — IVOL is the risk Leg 2 cannot hedge, so minimize it; (b) dividend durability through the last two recessions — you will own these via assignment, so a dividend that survives drawdowns matters more than its current yield; (c) low pairwise correlation with names already in the set, to avoid assignment clustering in a single sector (e.g., do not pair BAC with another large-cap bank). Rank on these, not on premium richness — premium richness is compensation for exactly the idiosyncratic risk you are trying to exclude.
+- **Target profile to backfill toward**: low-beta, high-quality (profitable, low-leverage, stable-margin), dividend-durable names spread across low-correlation sectors the current set underweights (utilities, staples beyond KO, stable large-cap pharma rather than binary biotech, low-vol industrials). Candidates to evaluate against the composite rule, not buy recommendations.
+- **Liquidity filters**: option open interest > 500 at chosen strike; bid-ask spread < 5% of mid; underlying market cap > $10B
+- **Exclusions**: earnings within DTE window; corporate actions within DTE window; IV rank > 90; option premium < $0.29
 
 **Leg 2 (index/vol long premium):**
 
@@ -68,7 +72,7 @@ Hermes runs as a *two-leg book* with explicit coordination rules:
 
 - Sell-to-open short put when delta is between -0.25 and -0.35 (target -0.30)
 - DTE 30–45 days
-- IV rank between 30 and 70
+- IV rank between 30 and 70 -- note this is a per-name timing gate (avoid entering a given name when its own vol is dead-low or event-spiked), NOT a cross-sectional premium-richness screen. Universe membership is decided by the Section 3 quality/IVOL/correlation rule first; IV rank only times entries within the already-selected names. Do not use high IV rank to justify adding a name to the universe.
 - Annualized ROI > T-bill yield + 5%
 - Cooldown: no new put on same underlying within 7 days of a closed position
 
@@ -213,7 +217,7 @@ Paper-trade results must meet ALL over 8+ weeks before real capital:
 
 - **The concave-exposure trap (the new top item):** unhedged short vol blows up in crisis regimes (1987, 1998, 2008, Feb 2018, March 2020, Aug 2024). v0 explicitly addresses this with Leg 2. The most dangerous failure mode is not the trap itself — it's *shrinking the hedge during benign periods*. This is the single behavior most likely to convert v0 from a survivable strategy into LTCM-pattern.
 - **Crowded volatility-selling regime:** when too much capital is short premium, premiums compress and tails amplify. Leg 2 specifically protects against the Feb 2018-pattern. Detected by VIX regime check.
-- **Basis risk on hedges:** single-name idiosyncratic blowup (e.g., one of your names has accounting fraud) won't be fully hedged by SPY puts. Bounded by quality universe (S&P 100 names) but not eliminated. Acceptable residual risk for v0.
+- **Idiosyncratic risk sits in the hedge's blind spot (the universe-selection failure mode)**: Leg 2 (SPY puts, VIX calls) protects against systematic, correlated crashes. It does essentially nothing for an idiosyncratic single-name blowup — accounting fraud, a failed drug trial, a foundry collapse, a sudden dividend suspension. Cao & Han (2013) show high-idiosyncratic-vol names pay more option premium, but that premium compensates exactly the risk Leg 2 cannot hedge. The failure mode is therefore selecting names for premium richness, which systematically loads exposure into the unhedged region. The defense is in Section 3: rank the universe on low idiosyncratic vol, dividend durability, and low cross-correlation — never on premium. This is why INTC was removed and F/GILD demoted. Residual idiosyncratic risk on the core set (KO, VZ, BAC) is small and accepted; do not let the universe drift back toward high-IVOL names because they "pay better."
 - **Assignment in falling regime:** assigned at strike, underlying continues falling, covered calls produce trivial premium. Now partially offset by Leg 2 gains. Still painful, no longer existential.
 - **Hedge-decay cost:** in sustained low-vol regimes, Leg 2 bleeds continuously. This is *expected and budgeted*. The discipline is not to interpret it as evidence the hedge is too expensive.
 - **Strategy complexification under pressure:** the deepest failure mode from your notes. The barbell adds genuine complexity (two legs vs one). Resist the urge to add a third leg, modify hedge ratios mid-stream, or "improve" the strategy during a drawdown.

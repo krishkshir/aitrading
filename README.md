@@ -36,7 +36,10 @@ The two legs are exposures of opposite convexity in the same portfolio — not p
 
 **Leg 1 (single-name short premium):**
 - US-listed optionable equities, Penny Interval Program members
-- Starting set: BAC, VZ, F, KO, GILD, INTC
+- **Core set**: KO, VZ, BAC — low-to-moderate idiosyncratic vol, dividend-durable, BAC tail risk is largely systematic and therefore covered by Leg 2
+- **Optional satellites (≤ half a core position each)**: F, GILD — higher premium but carry idiosyncratic risk the hedge cannot cover (F's dividend was cut in COVID; GILD has binary FDA/pipeline tail)
+- **Removed**: INTC — dividend suspended Q4 2024, negative free cash flow, live solvency tail, high idiosyncratic vol; fails every selection criterion
+- **Selection rule for new names**: rank on (a) low idiosyncratic vol (IVOL is the unhedged risk), (b) dividend durability through the last two recessions, (c) low pairwise correlation with existing names. Do not add names for premium richness — high premium compensates exactly the idiosyncratic risk Leg 2 cannot hedge
 - Liquidity filters: option OI > 500 at chosen strike; bid-ask spread < 5% of mid; underlying market cap > $10B
 - Exclusions: earnings within DTE window; corporate actions within DTE window; IV rank > 90; option premium < $0.29
 
@@ -49,7 +52,7 @@ The two legs are exposures of opposite convexity in the same portfolio — not p
 
 **Leg 1 — Short put entry:**
 - Sell-to-open when delta is between −0.25 and −0.35 (target −0.30)
-- DTE 30–45 days; IV rank 30–70
+- DTE 30–45 days; IV rank 30–70 (per-name timing gate only — not a cross-sectional premium-richness screen; universe membership is decided by the Section 3 quality/IVOL/correlation rule first)
 - Annualized ROI > T-bill yield + 5%
 - 7-day cooldown per underlying after a closed position
 
@@ -158,7 +161,7 @@ Never use STOP LOSS market orders — only STOP LMT on either leg.
 
 - **Concave-exposure trap (top item):** unhedged short vol blows up in crisis regimes (1987, 1998, 2008, Feb 2018, March 2020, Aug 2024). The most dangerous failure mode is *shrinking the hedge during benign periods* — this is the LTCM pattern
 - **Crowded volatility-selling:** compressed premiums and amplified tails; Leg 2 specifically protects against Feb 2018-pattern; detected by VIX regime check
-- **Basis risk on hedges:** single-name idiosyncratic blowup (e.g., accounting fraud) won't be fully covered by SPY puts; bounded by quality universe but not eliminated
+- **Idiosyncratic risk sits in the hedge's blind spot:** Leg 2 (SPY puts, VIX calls) covers systematic crashes; it does nothing for single-name blowups — fraud, a failed drug trial, a dividend suspension. High-IVOL names pay more premium (Cao & Han 2013), but that premium compensates exactly the unhedged risk. Defense is in the universe selection rule: rank on low idiosyncratic vol, dividend durability, and low cross-correlation — never on premium. This is why INTC was removed and F/GILD demoted
 - **Assignment in a falling regime:** wheel underperforms when assigned underlying continues falling; now partially offset by Leg 2 gains, no longer existential
 - **Hedge-decay cost:** in sustained low-vol regimes, Leg 2 bleeds continuously; expected and budgeted — do not interpret as evidence the hedge is too expensive
 - **Strategy complexification under pressure:** the barbell already adds genuine complexity; resist adding a third leg, modifying ratios mid-stream, or improving the strategy during a drawdown
