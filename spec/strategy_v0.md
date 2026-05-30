@@ -169,37 +169,47 @@ Cost as a fraction of premium — a diagnostic, not a control. The hedge dollar 
 
 ## 9. Falsification criteria
 
-The whole point of barbell is to change the *shape* of returns, not just the mean. Falsification must be measured on shape, not just performance.
+The whole point of barbell is to change the shape of returns, not just the mean — so falsification is ultimately measured on shape and on the benchmark comparison, not on raw performance. But shape metrics need a year of data; the paper-trade gate has weeks. The criteria are therefore tiered by what data actually exists when they bind. Do not evaluate a Tier 2 metric on Tier 1 data — a skew estimate from 2–3 monthly observations is statistically meaningless and must not be computed as if it were valid.
 
-**Shape criteria (the new and most important section):**
+**Tier 1 — Phase 2 paper-trade gate (8–12 weeks, limited data)**
+Only criteria that 2–3 months of observations can actually support:
 
-- **Realized skew (12-month rolling, monthly observations):** must be > -0.5. If skew < -0.5 for two consecutive quarters, the hedge leg is undersized — recalibrate before any new short-premium entries.
-- **Worst-month / average-month ratio (12-month rolling):** must be ≤ 4×. A ratio of 6× or more indicates the strategy has retained too much concave exposure.
-- **Worst-month absolute floor:** any single month worse than -10% of equity triggers full strategy review.
+- Primary test — beats the benchmark: combined book (Leg 1 + Leg 2) beats the equity-plus-hedge benchmark (buy-and-hold the universe + identical Leg 2) on risk-adjusted terms, after all costs. This is the load-bearing falsification criterion (see Section 13). If the wheel machinery does not beat simply holding the names with the same hedge, the strategy is falsified — revert to equity-plus-hedge. Benchmarking against the unhedged wheel is deprecated; the unhedged book is not the reference point.
+- Max drawdown: < 8% of paper account over the window.
+- No catastrophic month: no single month worse than -10% of equity. (Note: barely observable in an 8-week window — its main force is as a Tier 2 ongoing check.)
+- Mechanical execution verified: hedge coverage maintained continuously (no 30+ day gaps vs target), profit-taker and roll logic fired as designed, kill switch tested live.
 
-**Performance criteria (calibrated to the *hedged* return profile, not the unhedged one):**
+*Diagnostics tracked but NOT falsification triggers at this stage* (they measure the near-zero-edge vol component, not the equity-risk-premium engine, and assignment is part of the strategy per Section 5, not failure): CSP win rate; per-closed-combo P/L. Record them to calibrate expectations; do not shelve on them.
 
-- 8-week paper-trade combined P/L (Leg 1 minus Leg 2 cost): > $150/closed-combo cycle (vs ~$440 unhedged baseline; reflects 18–22% hedge cost)
-- CSP win rate (not counting assignments): > 70% over 20+ trades
-- Combined book Sharpe (annualized): > 0.8 over 12+ weeks
-- Max drawdown: < 8% of paper account
+**Tier 2 — Ongoing live falsification (once ≥ 12 monthly observations exist)**
+The shape criteria — the direct expression of the Taleb-consistency objective — bind here, not at the paper gate:
 
-**The trap to avoid.** The hedge will cost money every month it's not needed. The shape-criteria checks are designed to prevent the most dangerous failure mode: gradually shrinking the hedge during benign periods because it "isn't earning its keep." If realized skew is acceptable, the hedge IS earning its keep — that's the point. Returns will look worse than unhedged short vol. The unhedged version is the one that blows up.
+- Realized skew (12-month rolling, monthly observations): must be > -0.5. If skew < -0.5 for two consecutive quarters, the hedge leg is undersized — recalibrate (increase the hedge) before any new short-premium entries.
+- Worst-month / average-month ratio (12-month rolling): must be ≤ 4×. A ratio ≥ 6× indicates too much concave exposure has been retained.
+- Continued benchmark outperformance: the combined book continues to beat equity-plus-hedge on risk-adjusted terms over rolling 12-month windows. Persistent failure → revert to the simpler book.
 
-> **Pre-commitment.** The shape criteria are evaluated mechanically. The phrase "the hedge is fine, the market just doesn't have any tail right now" is the verbal signature of impending strategy death. If skew turns negative for two consecutive quarters, the response is to *increase* the hedge, not rationalize keeping it as-is.
+**Tier 3 — The trap, and pre-commitment**
+*The trap to avoid*. The hedge will cost money every month it's not needed (30–60% of premium per Section 6, worst in calm months). The Tier 2 shape checks exist to prevent the most dangerous failure mode: gradually shrinking the hedge during benign periods because it "isn't earning its keep." If realized skew is acceptable, the hedge IS earning its keep — that's the point. Returns will look worse than unhedged short vol. The unhedged version is the one that blows up.
+
+> Pre-commitment. The shape criteria are evaluated mechanically once the data exists to support them. The phrase "the hedge is fine, the market just doesn't have any tail right now" is the verbal signature of impending strategy death. If skew turns negative for two consecutive quarters, the response is to increase the hedge, not rationalize keeping it as-is.
 
 ---
 
 ## 10. Performance bar to go live (Phase 3 gate)
 
-Paper-trade results must meet ALL over 8+ weeks before real capital:
+The gate can only test what 8–12 weeks of paper data supports — i.e., Tier 1 criteria (Section 9). It cannot test the 12-month shape criteria; those become a post-launch commitment, not a gate condition.
 
+*Gate conditions (all required, over 8–12 weeks paper)*:
+
+- Beats the equity-plus-hedge benchmark on risk-adjusted terms, after costs (the primary test)
 - Combined Sharpe (annualized): > 0.8
-- Realized skew (rolling): > -0.5
-- Worst-month / average-month ratio: < 4×
 - Max drawdown: < 8% of paper account
 - Trade count: > 25 closed Leg 1 combos
-- Hedge book maintained continuously (no 30+ day gaps in target coverage)
+- Hedge book maintained continuously (no 30+ day gaps in target coverage); kill switch tested live
+
+*Post-launch commitment (not a gate — there isn't enough data yet)*: within the first 12 months live, the Tier 2 shape criteria (realized skew > -0.5; worst-month/average-month ≤ 4×; continued benchmark outperformance) must be established and thereafter evaluated mechanically per Section 9. Going live is conditional on pre-committing — in writing — to honor these once the data exists, including the commitment to increase the hedge if skew turns negative rather than rationalize shrinking it.
+
+*Not gate conditions (diagnostics only)*: CSP win rate, per-closed-combo P/L — for the reasons in Section 9 Tier 1.
 
 ---
 

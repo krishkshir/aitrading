@@ -135,27 +135,32 @@ Never use STOP LOSS market orders — only STOP LMT on either leg.
 | 2 | Paper trading | 8–12 weeks, 25+ closed Leg 1 combos |
 | 3 | Live trading | All Phase 3 gates met |
 
-**Phase 3 gate (must meet ALL):**
+**Phase 3 gate — what 8–12 weeks of paper data can actually support (all required):**
+- Beats the equity-plus-hedge benchmark (buy-and-hold universe + identical Leg 2) on risk-adjusted terms after all costs — the primary test
 - Combined Sharpe (annualized): > 0.8
-- Realized skew (rolling): > −0.5
-- Worst-month / average-month ratio: < 4×
 - Max drawdown: < 8% of paper account
 - Closed Leg 1 combos: > 25
-- Hedge book maintained continuously (no 30+ day gaps in target coverage)
+- Hedge book maintained continuously (no 30+ day gaps); kill switch tested live
+
+*Not gate conditions (diagnostics only):* CSP win rate, per-combo P/L — the shape criteria (skew, worst-month ratio) require 12 months of data and cannot be evaluated at the paper gate.
+
+*Post-launch commitment:* within the first 12 months live, the Tier 2 shape criteria must be established and evaluated mechanically — including the commitment to *increase* the hedge if skew turns negative.
 
 ## Falsification Criteria
 
-**Shape criteria (primary):**
-- Realized skew (12-month rolling, monthly observations): must be > −0.5. Two consecutive quarters below → recalibrate hedge before any new short-premium entries
-- Worst-month / average-month ratio: must be ≤ 4×. A ratio ≥ 6× indicates too much concave exposure
-- Any single month worse than −10% of equity: full strategy review
+**Tier 1 — paper-trade gate (8–12 weeks)**
+- Beats equity-plus-hedge benchmark on risk-adjusted terms after costs (primary; if the wheel machinery doesn't beat simply holding the names with the same hedge, revert to equity-plus-hedge)
+- Max drawdown < 8%; no single month worse than −10% of equity
+- Mechanical execution verified (hedge coverage, profit-taker, roll logic, kill switch)
 
-**Performance criteria (calibrated to the hedged return profile):**
-- 8-week paper combined P/L (Leg 1 minus Leg 2 cost): > $150/closed-combo cycle
-- CSP win rate: > 70% over 20+ trades
-- Max drawdown: < 8% of paper account
+*Tracked but not triggers at this stage:* CSP win rate; per-combo P/L.
 
-**The trap to avoid:** the hedge will cost money every month it's not needed. The phrase "the hedge is fine, the market just doesn't have any tail right now" is the verbal signature of impending strategy death. If realized skew turns negative for two consecutive quarters, the response is to *increase* the hedge.
+**Tier 2 — ongoing live falsification (once ≥ 12 monthly observations exist)**
+- Realized skew (12-month rolling): > −0.5. Two consecutive quarters below → increase hedge before any new short-premium entries
+- Worst-month / average-month ratio (12-month rolling): ≤ 4×. Ratio ≥ 6× → too much concave exposure remains
+- Continued benchmark outperformance on rolling 12-month windows. Persistent failure → revert to equity-plus-hedge
+
+**The trap:** the hedge costs 30–60% of monthly income and looks most expensive in calm markets — exactly when protection is about to matter most. The phrase "the hedge isn't earning its keep" is the verbal signature of impending strategy death. If Tier 2 skew turns negative for two consecutive quarters, the response is to *increase* the hedge.
 
 ## Known Failure Modes
 
