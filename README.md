@@ -27,7 +27,7 @@ The expected return is lower than an unhedged wheel. That is the deliberate trad
 **Leg 2 — Tail hedge (long vol, convex):**
 - Long SPY puts: 60–120 DTE, delta ≈ 0.08–0.10, far OTM
 - Long VIX calls: 60–90 DTE, strike 25–30
-- Costs ~18–22% of Leg 1 income as deliberate negative carry (not a "funded" spread leg)
+- Costs ~$300/month at $100k scale as deliberate negative carry — roughly 30–60% of income depending on the month, and highest in low-vol months (not a "funded" spread leg; sized off tail-coverage target, not off income)
 - Expected to lose money most months; expected to produce large gains in crisis months
 
 The two legs are exposures of opposite convexity in the same portfolio — not position-level hedges. The combined book is structured for distributional shape, not position-level neutrality.
@@ -58,7 +58,7 @@ The two legs are exposures of opposite convexity in the same portfolio — not p
 
 **Leg 2 — Long-vol entry:**
 - SPY puts: buy 60–120 DTE at delta ≈ 0.08–0.10 whenever portfolio long-put notional drops below the sizing target; one position per month for replenishment
-- VIX calls: maintain a continuously rolled position; buy 60–90 DTE at strike 25–30; roll when DTE < 30
+- VIX calls: maintain a continuously rolled position; buy 60–90 DTE at strike 25–30; roll when DTE < 30; sized as a fixed-dollar tail sleeve (~$30/month at $100k scale), not as a percentage of prior-month premium
 
 **Anti-cyclicality discipline:**
 - VIX < 15: increase hedge allocation by 20% (insurance is cheap; markets are complacent)
@@ -89,9 +89,9 @@ Never use STOP LOSS market orders — only STOP LMT on either leg.
 
 **Leg 2 (the load-bearing math):**
 - Sized so that a −20% one-month SPY move produces a hedge gain ≈ 50% of expected wheel pain — converts a catastrophic month into a survivable one, not full neutralization
-- On a $100k account: ~1 SPY put contract (~$800 cost, spread over 3 months ≈ $270/month) + VIX calls (~3–5% of income ≈ $30/month) = ~$300/month combined hedge cost
-- At $500–1,000/month income → hedge cost is 18–22% of income (explicit negative carry, budgeted as such)
-- Recompute hedge requirements monthly; do not skip a hedge purchase because "this month feels safe"
+- On a $100k account: ~1 SPY put contract (~$800 cost, spread over 3 months ≈ $270/month) + VIX calls (fixed-dollar sleeve ~$30/month) = ~$300/month combined hedge cost
+- The dollar amount is set by the tail-coverage target, not by a target percentage of income. The cost-to-income ratio is an output: ~30–60% of monthly income, and highest (60%) in low-premium/low-vol months — precisely when complacency is highest and protection is about to matter most. Do not treat a high ratio as a reason to cut the hedge
+- Recompute SPY put requirement monthly; do not skip a hedge purchase because "this month feels safe"
 
 ## Risk Limits
 

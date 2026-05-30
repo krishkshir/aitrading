@@ -39,7 +39,7 @@ Hermes runs as a *two-leg book* with explicit coordination rules:
 - Long SPY puts: 60–120 DTE, delta ≈ 0.08–0.10, far OTM
 - Long VIX calls: 60–90 DTE, strike 25–30, very small allocation
 - Generates expected loss in benign months; expected large gain in crisis months
-- Costs ~18–22% of harvested income as negative carry (a deliberate expense for convexity, not a "funded" spread leg)
+- Costs ~$300/month at $100k scale as negative carry — roughly 30–60% of harvested income depending on the month, highest in low-premium/low-vol months (a deliberate expense for convexity, sized off tail exposure, not a "funded" spread leg; see Section 6)
 
 **Coordination:** the two legs are *not* hedges of specific positions — they are exposures of opposite convexity in the same portfolio. The wheel is not delta-hedged. The hedge is not position-by-position. The combined book is structured for distributional shape, not position-level neutrality.
 
@@ -79,7 +79,7 @@ Hermes runs as a *two-leg book* with explicit coordination rules:
 **Leg 2 — Long-vol entry (initial sizing):**
 
 - SPY puts: open a position whenever portfolio long-put notional protection drops below the sizing target (see Section 6). Buy 60–120 DTE puts at delta ≈ 0.08–0.10 (typically 8–12% OTM). One position per month if needed for replenishment.
-- VIX calls: maintain a continuously rolled position. Buy 60–90 DTE calls at strike 25–30. Roll when DTE drops below 30 days. One position per month, sized to ~3–5% of harvested premium for the prior month.
+- VIX calls: maintain a continuously rolled position. Buy 60–90 DTE calls at strike 25–30. Roll when DTE drops below 30 days. Size as a small fixed-dollar tail sleeve (~$30/month at $100k scale; scale proportionally to account size), not as a percentage of prior-month premium — see Section 6 on sizing off tail exposure rather than off income.
 
 **Anti-cyclicality discipline:**
 
@@ -132,7 +132,8 @@ Known cost (new under the equity-risk-premium framing): closing early plus the 7
 - 90-DTE puts spread that cost over 3 months → ~$270/month
 - VIX calls at strike 25–30, ~3% of premium → ~$30/month (small)
 - Combined hedge cost: ~$300/month on a $100k account
-- Premium harvested at ~$500–1,000/month → hedge cost is **18–22% of harvested premium**
+
+Cost as a fraction of premium — a diagnostic, not a control. The hedge dollar amount is set by the tail-coverage target above, NOT by a target percentage of premium. The percentage is therefore an output that swings month to month. With ~$300/month of hedge cost and harvested premium of ~$500–1,000/month, the cost runs *roughly 30–60% of premium — and is highest (60%) in exactly the low-premium months, which cluster in low-volatility regimes.* That is the dangerous combination: the hedge looks most expensive relative to income precisely when complacency is highest and protection is about to matter most. Do NOT treat a high ratio as a reason to cut the hedge — the ratio being ugly in calm markets is a feature of correct sizing, not a bug. (An earlier draft stated "18–22%"; that figure was inconsistent with these dollar amounts — $300 ÷ $500–1,000 cannot yield 18–22% — and is corrected here.)
 
 *Sizing rule (encoded as a discipline):* recompute hedge requirements monthly. Buy SPY put protection to maintain the "50% of wheel pain in -20% scenario" target. Buy VIX calls in fixed proportion (3–5% of prior month's premium) regardless of price level. Do not skip a hedge purchase because "this month feels safe."
 
@@ -242,7 +243,7 @@ Paper-trade results must meet ALL over 8+ weeks before real capital:
 ## Sign-off checklist (end of Phase 0)
 
 - [x] Every section reviewed and either accepted or modified
-- [ ] Hedge-sizing math reviewed and either accepted or refined with your own assumptions
+- [x] Hedge-sizing math reviewed and either accepted or refined with your own assumptions
 - [ ] Falsification criteria personally committed to in writing — including the shape criteria
 - [ ] You can explain why this is a barbell (not just "wheel with insurance") to a competent friend in under 2 minutes
 - [ ] You'd be willing to walk away from this strategy if shape criteria trigger — *honestly*
@@ -260,7 +261,7 @@ These are decisions I made with reasonable defaults but that deserve your own an
 
 1. **SPY vs SPX for the hedge leg.** SPX has better tax treatment (60/40) and cash settlement; SPY has tighter spreads. For v0 I defaulted to SPY for liquidity; consider SPX if account size justifies and you're comfortable with 100× notional per contract.
 
-2. **VIX call sizing.** I defaulted to 3–5% of premium. This is rough. Aaron Brown and others argue VIX calls are the most efficient crisis-only hedge; could plausibly go to 8–10% of premium with smaller SPY put allocation. Worth modeling.
+2. **VIX call sizing.** I defaulted to a small fixed-dollar sleeve (~$30/month at $100k). This is rough. Aaron Brown and others argue VIX calls are the most efficient crisis-only hedge; a larger VIX allocation with a smaller SPY put allocation could plausibly deliver the same tail coverage at lower carry. Worth modeling — but size it off tail-coverage contribution, not off a percentage of premium.
 
 3. **Hedge-sizing target.** I picked "hedge covers 50% of wheel pain in -20% scenario." More conservative would be 75% or 100% coverage (higher cost, lower expected return, higher Sharpe). Less conservative would be 25% (more like a "speed bump" hedge). The 50% level is a defensible middle; refine based on your own utility function.
 
